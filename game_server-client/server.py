@@ -32,6 +32,8 @@ class Server:
         self.client = {}
         self.consecutive_noplays = 0
         self.highest_double = None
+        self.pseudoDeck = []
+        self.sessKeys= []
 
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
@@ -49,7 +51,7 @@ class Server:
             s.listen(1)
             conn, addr = s.accept()
             
-            #recieve auth0
+            #recieve auth0------------------------------------------------------
             cipherText = conn.recv(4096)
             plainText = security.rsaDecrypt(cipherText, PRIVATE_KEY)
             data = json.loads(plainText)
@@ -98,11 +100,27 @@ class Server:
             self.client.pop('nonce')
             
             print('The player',name,'athentication was sucessfull\n')
-            
+
             if len(self.players) == self.nplayers:
                 print("Lobby is full!\n")
                 break
-    
+
+    def pseudoTile(self):
+        
+        for Ti in self.original_stack:
+            SESSION_KEY = security.aesKey()
+            self.sessKeys.append(SESSION_KEY)
+            Pi = security.aesEncrypt(json.dumps(Ti).encode(), SESSION_KEY)
+            self.pseudoDeck.append(Pi)
+
+    def unpseudoTile(self):
+        indexKey = 0
+        for Pi in self.pseudoDeck:
+            jsonText = security.aesDecrypt(Pi, self.sessKeys[indexKey])
+            Ti = json.loads(jsonText)
+            print(Ti)
+            indexKey +=1
+        
     def play(self):
     
         end = 0
@@ -183,7 +201,7 @@ class Server:
                 has_doubles=1
             else: 
                 #When no double tiles are in players hands, the game resets 
-                print("No double tiles in game, tiles return to stack to be shuffled again!")
+                print("No double tiles in  ame, tiles return to stack to be shuffled again!")
                 msg={'type': 'no_doubles'}
                 for player in self.players:
                     self.conn[player].sendall(pickle.dumps(msg))
@@ -194,7 +212,7 @@ class Server:
         #variables to return
         points = 0
         winner = 0
-
+        
         while(not game_end):
             #send info about game 
 
