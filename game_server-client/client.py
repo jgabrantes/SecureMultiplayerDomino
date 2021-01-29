@@ -5,6 +5,9 @@ import random
 import string
 import pickle
 import crypt
+import security
+import json
+
 
 class Client:
 
@@ -13,7 +16,13 @@ class Client:
         self.hand=[]
         self.board=[]
         self.type = ''
+        PUBLIC_KEY, PRIVATE_KEY = security.rsaKeyPair()
+        SERVER_PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
+        SESSION_KEY = security.aesKey()
 
+
+        #Authentication Stage Start--------------------------------------
+        print("Authentication Stage\n")
         if len(sys.argv) >= 2:
             self.name = sys.argv[1]
         else:
@@ -21,9 +30,46 @@ class Client:
         
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect(('localhost', 8080))
-        msg = {"name": self.name}
-        self.s.sendall(pickle.dumps(msg))
-        print("You connected with name",self.name)
+
+
+        #send auth0-----------------------------------------------------
+        msg = {"name": self.name,
+               "type": "AUTH0", 
+              "nonce": security.nonce(),
+              'session_key': SESSION_KEY,
+              "hashed_public_key": security.shaHash(security.rsaDumpKey(PUBLIC_KEY))  }
+
+        plainText = json.dumps(msg).encode()
+        cipherText = security.rsaEncrypt(plainText, SERVER_PUBLIC_KEY)
+        self.s.sendall(cipherText)
+        
+        #recieve auth1----------------------------------------------------------
+        cipherText = self.s.recv(4096)
+        plainText = security.aesDecrypt(cipherText,SESSION_KEY)
+        message = json.loads(plainText)
+
+        if not message['type'] == 'AUTH1':
+            raise Exception('Wrong message type "{}". Expected: "AUTH1".', message['type'])
+
+        signature = message['sign']
+
+        if not security.rsaVerify(msg['nonce'],signature,SERVER_PUBLIC_KEY):
+           raise Exception('Invalid signature of the nonce sent in "AUTH0".')
+
+        #send auth2--------------------------------------------------------------
+        signature = security.rsaSign(message['nonce'], PRIVATE_KEY)
+
+        message['type'] = 'AUTH2'
+        message['sign'] = signature
+        message['public_key']= security.rsaDumpKey(PUBLIC_KEY)
+       
+
+        plainText = json.dumps(message).encode()
+        cipherText = security.aesEncrypt(plainText,SESSION_KEY)
+
+        self.s.sendall(cipherText)
+
+        print("Authentication sucessfull, you connected with pseudonym "+self.name)
 
         running = 1
         while running:

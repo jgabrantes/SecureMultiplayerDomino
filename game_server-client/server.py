@@ -8,6 +8,8 @@ import sys
 import time
 import pickle
 import crypt
+import security
+import json
 
 class Server:
     
@@ -27,8 +29,12 @@ class Server:
         self.scores = {}
         self.conn = {}
         self.addr = {}
+        self.client = {}
         self.consecutive_noplays = 0
         self.highest_double = None
+
+        PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
+        PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
 
         if len(sys.argv) >= 2:
             if(int(sys.argv[1]) >=2 and int(sys.argv[1]) <= 4):
@@ -42,14 +48,57 @@ class Server:
         while True:
             s.listen(1)
             conn, addr = s.accept()
-            data = pickle.loads(conn.recv(4096))
-            if 'name' in data:
-                name=data['name']
-                print("Player",name,"connected.")
-                self.players += [name]
-                self.conn[name]=conn
-                self.addr[name]=addr
+            
+            #recieve auth0
+            cipherText = conn.recv(4096)
+            plainText = security.rsaDecrypt(cipherText, PRIVATE_KEY)
+            data = json.loads(plainText)
 
+            if  not data['type'] == "AUTH0":
+                raise Exception('Wrong message type "{}". Expected: "AUTH0".', data['type'])
+            name = data['name']
+
+            self.players += [name]
+            self.conn[name]=conn
+            self.addr[name]=addr            
+
+            self.client['name'] = data['name']
+            self.client['hashed_public_key'] = data['hashed_public_key']
+            self.client['nonce'] = data['nonce']
+            self.client['session_key'] = data['session_key']
+
+            #send auth1---------------------------------------------------
+            signature = security.rsaSign(self.client['nonce'],PRIVATE_KEY)
+            self.client['nonce'] = security.nonce()
+            message = dict()
+            message['type'] = 'AUTH1'
+            message['sign'] = signature
+            message['nonce'] = self.client['nonce']
+            
+            plainText = json.dumps(message).encode()
+            cipherText = security.aesEncrypt(plainText, self.client['session_key'])
+
+            self.conn[name].sendall(cipherText)
+
+            #recieve auth2-----------------------------------------------------
+            cipherText = self.conn[name].recv(4096)
+            print(self.conn[name])
+            plainText = security.aesDecrypt(cipherText, self.client['session_key'])
+            message = json.loads(plainText)
+
+            if not message['type'] == 'AUTH2':
+                raise Exception('Wrong message type "{}". Expected: "AUTH2".', message['type'])
+            
+            signature = message['sign']
+            publicKey = message['public_key']
+            if not security.shaHash(publicKey) == self.client['hashed_public_key']:
+               raise Exception('The hash received in "AUTH0" does not match the calculated hash.')
+            
+            self.client.pop('hashed_public_key')
+            self.client.pop('nonce')
+            
+            print('The player',name,'athentication was sucessfull\n')
+            
             if len(self.players) == self.nplayers:
                 print("Lobby is full!\n")
                 break
