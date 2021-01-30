@@ -12,9 +12,12 @@ import json
 class Client:
 
     def __init__(self):
+
         
+        self.STOCK = []
         self.hand=[]
-        self.board=[]
+        self.board=[]            
+        self.shufMap = []
         self.type = ''
         PUBLIC_KEY, PRIVATE_KEY = security.rsaKeyPair()
         SERVER_PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
@@ -178,20 +181,28 @@ class Client:
         if not message['type'] == 'SHUF0':
             raise Exception('Wrong message type "{}". Expected: "SHUF0".', message['type'])
         
-        global DECK
-        DECK = message['stock']
+       
+        self.STOCK = message['stock']
         print("Pseudonymized stock recieved from the Server")
 
     def sendShuf1(self):
-        global shufMap
-        shufMap = []
         
-        for i,Ti in enumerate(DECK):
+        for i,Ti in self.STOCK:
             Ki = security.aesKey()
             Ci = security.aesEncrypt(Ti,Ki)
-            shufMap.append((Ci, Ki))
+            self.STOCK[i] = Ci
+            self.shufMap.append((Ci, Ki))
 
+        random.shuffle(self.STOCK)
+        
+        message = dict()
+        message['type'] = 'SHUF1'
+        message['stock'] = self.STOCK
 
+        plainText = json.dumps(message)
+        cipherText = security.aesEncrypt(plainText, self.SESSION_KEY)
+        self.s.sendall(cipherText)
+        print("Shuffled Stock sent to Server")
 
     #check player possible next plays and picks the play with more value, return None if no play is possible
     def pick_possible_play(self):

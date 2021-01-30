@@ -75,11 +75,7 @@ class Server:
             self.hashed_public_key[name] = data['hashed_public_key']
             self.nonce[name] = data['nonce']
             self.sessionKey[name] = data['session_key']
-           # self.client['name'] = data['name']
-            #self.client['hashed_public_key'] = data
-           # elf.client['nonce'] = data['nonce']
-           # self.client['session_key'] = data['session_key']
-
+          
             #send auth1---------------------------------------------------
             signature = security.rsaSign(self.nonce[name],PRIVATE_KEY)
             message = dict()
@@ -139,12 +135,23 @@ class Server:
         message['stock'] = stock
 
         plainText = json.dumps(message).encode()
-        cipherText = security.aesEncrypt(plainText, client['session_key'])
-        client['socket'].sendall(cipherText)
-        print('Pseudonymized stock sent to',client['name'])
+        cipherText = security.aesEncrypt(plainText,self.sessionKey[client])
+        client.sendall(cipherText)
+        print('Pseudonymized stock sent to',client)
 
-    
+    def recieveShuf1(self, client):
+        cipherText = self.conn[client].recv(4096)
+        plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
+        message = json.loads(plainText)
 
+        if not message['type'] == 'SHUF1':
+            raise Exception('Wrong message type "{}". Expected: "SHUF1".', message['type'])
+        
+        global STOCK
+        STOCK = message['stock']
+        print('Shuffled and crypted Stock recieved from',client) 
+
+       
     def play(self):
     
         end = 0
