@@ -35,6 +35,8 @@ class Client:
         self.s.connect(('localhost', 8080))
 
 
+        
+
         #send auth0-----------------------------------------------------
         msg = {"name": self.name,
                "type": "AUTH0", 

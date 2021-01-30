@@ -360,6 +360,9 @@ class Server:
         return inverted_tile
             
     
+
+
+    
     #returns a copy of the stack
     def copy_stack(self,stack):
         new_stack = []
