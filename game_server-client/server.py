@@ -129,19 +129,19 @@ class Server:
             print(Ti)
             indexKey +=1
 
-    def sendShuf0(self, client, stock):
+    def sendShuf0(self, client):
         message = dict()
         message['type'] = 'SHUF0'
-        message['stock'] = stock
+        message['stock'] = self.pseudoDeck
 
-        plainText = json.dumps(message).encode()
+        plainText = json.dumps((0,message)).encode()
         cipherText = security.aesEncrypt(plainText,self.sessionKey[client])
         client.sendall(cipherText)
         print('Pseudonymized stock sent to',client)
 
     def recieveShuf1(self, client):
         cipherText = self.conn[client].recv(4096)
-        plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
+        plainText = (0, (security.aesDecrypt(cipherText, self.sessionKey[client])))
         message = json.loads(plainText)
 
         if not message['type'] == 'SHUF1':
@@ -163,7 +163,7 @@ class Server:
         
         msg = {'type': "start_series"}
         for player in self.players:
-            self.conn[player].sendall(pickle.dumps(msg))
+            self.conn[player].sendall(json.dumps((1,msg)).encode())
             time.sleep(0.02)
 
         input("\nPress a key to START")
@@ -176,7 +176,7 @@ class Server:
             msg = {'type': "new_game", 'scores': self.scores}
             for player in self.players:
                 print("Player " + player + " -> " + str(self.scores[player]) + " points.")
-                self.conn[player].sendall(pickle.dumps(msg))
+                self.conn[player].sendall(json.dumps((1,msg)).encode())
                 time.sleep(0.02)
             for player in self.players:
                 if(self.scores[player] >= 100): #alterar para 100
@@ -184,7 +184,7 @@ class Server:
                     print("Player " + player + " won the series!!!")
                     msg={'type': "DISCONNECT", 'player': player, 'points': self.scores[player]}
                     for player in self.players:
-                        self.conn[player].sendall(pickle.dumps(msg))
+                        self.conn[player].sendall(json.dumps((1,msg)).encode())
                         time.sleep(0.02)
                     end = 1
                     break
@@ -194,22 +194,30 @@ class Server:
 
         msg={'type': "started_game"}
         for player in self.players:
-            self.conn[player].sendall(pickle.dumps(msg))
+            print("haha")
+            self.conn[player].sendall((json.dumps((1,msg)).encode()))
             time.sleep(0.02)
 
         #flag for the end of the game
         game_end = 0
         
+        #pseudonomization stage
+        print("Pseudonomization Stage:\n")
+        self.board = []
+        self.stack = self.select_randomtiles()
+        self.pseudoTile()
+        #print(self.pseudoDeck)
+
+        #Shuffling Stage
+        print("Shuffling Stage Starting:\n")
+        for player in self.players:
+            self.sendShuf0(player)
+
         #first play in game, it is reseted if no doubles are drawn
-        has_doubles = 0
+        has_5pieces = 0
         
-        while(not has_doubles):
-            #pseudonomization stage
-            print("Pseudonomization Stage\n")
-            self.board = []
-            self.stack = self.select_randomtiles()
-            self.pseudoTile()
-            print(self.pseudoDeck)
+        while(not has_5pieces):
+            
             #send 5 random tile to each player
             for i in range(5):
                 for player in self.players:
@@ -233,7 +241,7 @@ class Server:
                     self.conn[player].sendall(pickle.dumps(msg))
                 time.sleep(0.02)
 
-                has_doubles=1
+                has_5pieces=1
             else: 
                 #When no double tiles are in players hands, the game resets 
                 print("No double tiles in  ame, tiles return to stack to be shuffled again!")

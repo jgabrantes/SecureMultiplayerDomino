@@ -80,8 +80,12 @@ class Client:
             try:
                 data = self.s.recv(4096)
                 if data:
-                    data = pickle.loads(data)
-
+                    try:
+                        data = security.aesDecrypt(data, self.SESSION_KEY)
+                        data = json.load(data)
+                    except:
+                        data = json.loads(data)
+                    
                     self.type = data['type']
 
                     if(self.type == 'start_game'):
@@ -170,19 +174,13 @@ class Client:
                         points = data['points']
                         print("The player " + winner + " wins the game with " +  str(points) + " points!\n")
                         running = 0
+                    elif(self.type == 'SHUF0'):
+                        self.recieveShuf0(data['stock'])
             except socket.error as e:
                 print(e)
             
-    def recieveShuf0(self):
-        cipherText = self.s.recv(4096)
-        plainText = security.aesDecrypt(cipherText, self.SESSION_KEY)
-        message = json.loads(plainText)
-
-        if not message['type'] == 'SHUF0':
-            raise Exception('Wrong message type "{}". Expected: "SHUF0".', message['type'])
-        
-       
-        self.STOCK = message['stock']
+    def recieveShuf0(self, stock):
+        self.STOCK = stock
         print("Pseudonymized stock recieved from the Server")
 
     def sendShuf1(self):
