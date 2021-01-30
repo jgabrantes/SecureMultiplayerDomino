@@ -139,7 +139,7 @@ class Server:
         print('Pseudonymized stock sent to',client)
 
     def recieveShuf1(self, client):
-        cipherText = self.conn[client].recv(4096)
+        cipherText = self.conn[client].recv(16000)
         plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
         message = pickle.loads(plainText)
 

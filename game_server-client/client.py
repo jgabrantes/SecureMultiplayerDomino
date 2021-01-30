@@ -175,7 +175,7 @@ class Client:
                         print("The player " + winner + " wins the game with " +  str(points) + " points!\n")
                         running = 0
                     elif(self.type == 'SHUF0'):
-                        self.recieveShuf0(data)
+                        self.recieveShuf0(data['stock'])
                         self.sendShuf1()
     
 
@@ -188,18 +188,19 @@ class Client:
         print("Pseudonymized stock recieved from the Server")
 
     def sendShuf1(self):
-        
-        for i,Ti in self.STOCK:
+        index = 0
+        for Ti in self.STOCK:
             Ki = security.aesKey()
-            if(len(shufMap) != 0):
-                for elem in shufMap:
+            if(len(self.shufMap) != 0):
+                for elem in self.shufMap:
                     if Ki in elem:
                         Ki = security.aesKey()
-                        break
-            
-            Ci = security.aesEncrypt(Ti,Ki)
-            self.STOCK[i] = Ci
+                        
+            plainText = pickle.dumps(Ti)
+            Ci = security.aesEncrypt(plainText,Ki)
+            self.STOCK[index] = Ci
             self.shufMap.append((Ci, Ki))
+            index += 1
 
         random.shuffle(self.STOCK)
         
