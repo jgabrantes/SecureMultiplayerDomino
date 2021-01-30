@@ -176,6 +176,7 @@ class Client:
                         running = 0
                     elif(self.type == 'SHUF0'):
                         self.recieveShuf0(data)
+                        self.sendShuf1()
     
 
             except socket.error as e:
@@ -190,6 +191,12 @@ class Client:
         
         for i,Ti in self.STOCK:
             Ki = security.aesKey()
+            if(len(shufMap) != 0):
+                for elem in shufMap:
+                    if Ki in elem:
+                        Ki = security.aesKey()
+                        break
+            
             Ci = security.aesEncrypt(Ti,Ki)
             self.STOCK[i] = Ci
             self.shufMap.append((Ci, Ki))

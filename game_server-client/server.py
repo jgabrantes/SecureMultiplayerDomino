@@ -210,6 +210,8 @@ class Server:
         print("Shuffling Stage Starting:\n")
         for player in self.players:
             self.sendShuf0(player)
+            self.recieveShuf1(player)
+            self.pseudoDeck = STOCK
 
         #first play in game, it is reseted if no doubles are drawn
         has_5pieces = 0
