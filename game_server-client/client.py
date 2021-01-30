@@ -18,7 +18,7 @@ class Client:
         self.type = ''
         PUBLIC_KEY, PRIVATE_KEY = security.rsaKeyPair()
         SERVER_PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
-        SESSION_KEY = security.aesKey()
+        self.SESSION_KEY = security.aesKey()
 
 
         #Authentication Stage Start--------------------------------------
@@ -36,7 +36,7 @@ class Client:
         msg = {"name": self.name,
                "type": "AUTH0", 
               "nonce": security.nonce(),
-              'session_key': SESSION_KEY,
+              'session_key': self.SESSION_KEY,
               "hashed_public_key": security.shaHash(security.rsaDumpKey(PUBLIC_KEY))  }
 
         plainText = json.dumps(msg).encode()
@@ -45,7 +45,7 @@ class Client:
         
         #recieve auth1----------------------------------------------------------
         cipherText = self.s.recv(4096)
-        plainText = security.aesDecrypt(cipherText,SESSION_KEY)
+        plainText = security.aesDecrypt(cipherText,self.SESSION_KEY)
         message = json.loads(plainText)
 
         if not message['type'] == 'AUTH1':
@@ -65,7 +65,7 @@ class Client:
        
 
         plainText = json.dumps(message).encode()
-        cipherText = security.aesEncrypt(plainText,SESSION_KEY)
+        cipherText = security.aesEncrypt(plainText,self.SESSION_KEY)
 
         self.s.sendall(cipherText)
 
@@ -170,6 +170,28 @@ class Client:
             except socket.error as e:
                 print(e)
             
+    def recieveShuf0(self):
+        cipherText = self.s.recv(4096)
+        plainText = security.aesDecrypt(cipherText, self.SESSION_KEY)
+        message = json.loads(plainText)
+
+        if not message['type'] == 'SHUF0':
+            raise Exception('Wrong message type "{}". Expected: "SHUF0".', message['type'])
+        
+        global DECK
+        DECK = message['stock']
+        print("Pseudonymized stock recieved from the Server")
+
+    def sendShuf1(self):
+        global shufMap
+        shufMap = []
+        
+        for i,Ti in enumerate(DECK):
+            Ki = security.aesKey()
+            Ci = security.aesEncrypt(Ti,Ki)
+            shufMap.append((Ci, Ki))
+
+
 
     #check player possible next plays and picks the play with more value, return None if no play is possible
     def pick_possible_play(self):

@@ -30,12 +30,15 @@ class Server:
         self.conn = {}
         self.addr = {}
         self.client = {}
+        self.hashed_public_key = {}
+        self.nonce = {}
+        self.sessionKey = {}
         self.consecutive_noplays = 0
         self.highest_double = None
         self.pseudoDeck = []
         self.sessKeys= []
         self.Ntiles = 40
-
+      
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
 
@@ -69,28 +72,31 @@ class Server:
             self.conn[name]=conn
             self.addr[name]=addr            
 
-            self.client['name'] = data['name']
-            self.client['hashed_public_key'] = data['hashed_public_key']
-            self.client['nonce'] = data['nonce']
-            self.client['session_key'] = data['session_key']
+            self.hashed_public_key[name] = data['hashed_public_key']
+            self.nonce[name] = data['nonce']
+            self.sessionKey[name] = data['session_key']
+           # self.client['name'] = data['name']
+            #self.client['hashed_public_key'] = data
+           # elf.client['nonce'] = data['nonce']
+           # self.client['session_key'] = data['session_key']
 
             #send auth1---------------------------------------------------
-            signature = security.rsaSign(self.client['nonce'],PRIVATE_KEY)
-            self.client['nonce'] = security.nonce()
+            signature = security.rsaSign(self.nonce[name],PRIVATE_KEY)
             message = dict()
+            message['nonce'] = security.nonce()            
             message['type'] = 'AUTH1'
             message['sign'] = signature
-            message['nonce'] = self.client['nonce']
+            
             
             plainText = json.dumps(message).encode()
-            cipherText = security.aesEncrypt(plainText, self.client['session_key'])
+            cipherText = security.aesEncrypt(plainText, self.sessionKey[name])
 
             self.conn[name].sendall(cipherText)
 
             #recieve auth2-----------------------------------------------------
             cipherText = self.conn[name].recv(4096)
             print(self.conn[name])
-            plainText = security.aesDecrypt(cipherText, self.client['session_key'])
+            plainText = security.aesDecrypt(cipherText, self.sessionKey[name])
             message = json.loads(plainText)
 
             if not message['type'] == 'AUTH2':
@@ -98,11 +104,11 @@ class Server:
             
             signature = message['sign']
             publicKey = message['public_key']
-            if not security.shaHash(publicKey) == self.client['hashed_public_key']:
+            if not security.shaHash(publicKey) == self.hashed_public_key[name]:
                raise Exception('The hash received in "AUTH0" does not match the calculated hash.')
             
-            self.client.pop('hashed_public_key')
-            self.client.pop('nonce')
+            self.hashed_public_key.pop(name)
+            self.nonce.pop(name)
             
             print('The player',name,'athentication was sucessfull\n')
 
@@ -117,6 +123,7 @@ class Server:
             self.sessKeys.append(SESSION_KEY)
             Pi = security.aesEncrypt(json.dumps(Ti).encode(), SESSION_KEY)
             self.pseudoDeck.append((i,Pi))
+            
 
     def unpseudoTile(self):
         indexKey = 0
@@ -125,7 +132,19 @@ class Server:
             Ti = json.loads(jsonText)
             print(Ti)
             indexKey +=1
-        
+
+    def sendShuf0(self, client, stock):
+        message = dict()
+        message['type'] = 'SHUF0'
+        message['stock'] = stock
+
+        plainText = json.dumps(message).encode()
+        cipherText = security.aesEncrypt(plainText, client['session_key'])
+        client['socket'].sendall(cipherText)
+        print('Pseudonymized stock sent to',client['name'])
+
+    
+
     def play(self):
     
         end = 0
