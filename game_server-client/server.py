@@ -34,6 +34,7 @@ class Server:
         self.highest_double = None
         self.pseudoDeck = []
         self.sessKeys= []
+        self.Ntiles = 40
 
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
@@ -41,6 +42,10 @@ class Server:
         if len(sys.argv) >= 2:
             if(int(sys.argv[1]) >=2 and int(sys.argv[1]) <= 4):
                 self.nplayers = int(sys.argv[1])
+        
+        if len(sys.argv) >= 3:
+            if(int(sys.argv[2]) >=0):
+                self.Ntiles = int(sys.argv[2])
         
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind(('localhost', 8080))
@@ -173,8 +178,12 @@ class Server:
         has_doubles = 0
         
         while(not has_doubles):
+            #pseudonomization stage
+            print("Pseudonomization Stage\n")
             self.board = []
-            self.stack = self.copy_stack(self.original_stack)
+            self.stack = self.select_randomtiles()
+            self.pseudoTile()
+            print(self.pseudoDeck)
             #send 5 random tile to each player
             for i in range(5):
                 for player in self.players:
@@ -303,6 +312,14 @@ class Server:
         return (winner,points)
                 
     
+    #select random tiles
+    def select_randomtiles(self):
+        stack = []
+        for i in range(self.Ntiles):
+            j = random.randint(0,len(self.original_stack)-1)
+            stack.append(self.original_stack[j])
+        return stack
+
     #invert tile
     def invert_tile(self,tile):
         inverted_tile = (tile[1],tile[0])
@@ -324,7 +341,6 @@ class Server:
     
     def send_random_tile(self, player):
         total_tiles = len(self.stack)
-        assert total_tiles<=28
         j = random.randint(0,total_tiles-1)
         tile = self.stack[j]
         del(self.stack[j])
