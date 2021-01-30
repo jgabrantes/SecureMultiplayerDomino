@@ -112,11 +112,11 @@ class Server:
 
     def pseudoTile(self):
         
-        for Ti in self.original_stack:
+        for i,Ti in enumerate(self.original_stack):
             SESSION_KEY = security.aesKey()
             self.sessKeys.append(SESSION_KEY)
             Pi = security.aesEncrypt(json.dumps(Ti).encode(), SESSION_KEY)
-            self.pseudoDeck.append(Pi)
+            self.pseudoDeck.append((i,Pi))
 
     def unpseudoTile(self):
         indexKey = 0
