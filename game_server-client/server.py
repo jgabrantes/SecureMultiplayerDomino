@@ -134,14 +134,14 @@ class Server:
         message['type'] = 'SHUF0'
         message['stock'] = self.pseudoDeck
 
-        plainText = json.dumps((0,message)).encode()
+        plainText = json.dumps(message).encode()
         cipherText = security.aesEncrypt(plainText,self.sessionKey[client])
         client.sendall(cipherText)
         print('Pseudonymized stock sent to',client)
 
     def recieveShuf1(self, client):
         cipherText = self.conn[client].recv(4096)
-        plainText = (0, (security.aesDecrypt(cipherText, self.sessionKey[client])))
+        plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
         message = json.loads(plainText)
 
         if not message['type'] == 'SHUF1':
@@ -163,7 +163,7 @@ class Server:
         
         msg = {'type': "start_series"}
         for player in self.players:
-            self.conn[player].sendall(json.dumps((1,msg)).encode())
+            self.conn[player].sendall(json.dumps(msg).encode())
             time.sleep(0.02)
 
         input("\nPress a key to START")
@@ -176,7 +176,7 @@ class Server:
             msg = {'type': "new_game", 'scores': self.scores}
             for player in self.players:
                 print("Player " + player + " -> " + str(self.scores[player]) + " points.")
-                self.conn[player].sendall(json.dumps((1,msg)).encode())
+                self.conn[player].sendall(json.dumps(msg).encode())
                 time.sleep(0.02)
             for player in self.players:
                 if(self.scores[player] >= 100): #alterar para 100
@@ -184,7 +184,7 @@ class Server:
                     print("Player " + player + " won the series!!!")
                     msg={'type': "DISCONNECT", 'player': player, 'points': self.scores[player]}
                     for player in self.players:
-                        self.conn[player].sendall(json.dumps((1,msg)).encode())
+                        self.conn[player].sendall(json.dumps(msg).encode())
                         time.sleep(0.02)
                     end = 1
                     break
@@ -195,7 +195,7 @@ class Server:
         msg={'type': "started_game"}
         for player in self.players:
             print("haha")
-            self.conn[player].sendall((json.dumps((1,msg)).encode()))
+            self.conn[player].sendall((json.dumps(msg).encode()))
             time.sleep(0.02)
 
         #flag for the end of the game
