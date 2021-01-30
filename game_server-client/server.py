@@ -62,7 +62,7 @@ class Server:
             #recieve auth0------------------------------------------------------
             cipherText = conn.recv(4096)
             plainText = security.rsaDecrypt(cipherText, PRIVATE_KEY)
-            data = json.loads(plainText)
+            data = pickle.loads(plainText)
 
             if  not data['type'] == "AUTH0":
                 raise Exception('Wrong message type "{}". Expected: "AUTH0".', data['type'])
@@ -84,7 +84,7 @@ class Server:
             message['sign'] = signature
             
             
-            plainText = json.dumps(message).encode()
+            plainText = pickle.dumps(message)
             cipherText = security.aesEncrypt(plainText, self.sessionKey[name])
 
             self.conn[name].sendall(cipherText)
@@ -93,7 +93,7 @@ class Server:
             cipherText = self.conn[name].recv(4096)
             print(self.conn[name])
             plainText = security.aesDecrypt(cipherText, self.sessionKey[name])
-            message = json.loads(plainText)
+            message = pickle.loads(plainText)
 
             if not message['type'] == 'AUTH2':
                 raise Exception('Wrong message type "{}". Expected: "AUTH2".', message['type'])
@@ -117,7 +117,7 @@ class Server:
         for i,Ti in enumerate(self.original_stack):
             SESSION_KEY = security.aesKey()
             self.sessKeys.append(SESSION_KEY)
-            Pi = security.aesEncrypt(json.dumps(Ti).encode(), SESSION_KEY)
+            Pi = security.aesEncrypt(pickle.dumps(Ti), SESSION_KEY)
             self.pseudoDeck.append((i,Pi))
             
 
@@ -125,7 +125,7 @@ class Server:
         indexKey = 0
         for Pi in self.pseudoDeck:
             jsonText = security.aesDecrypt(Pi, self.sessKeys[indexKey])
-            Ti = json.loads(jsonText)
+            Ti = pickle.loads(jsonText)
             print(Ti)
             indexKey +=1
 
@@ -133,16 +133,15 @@ class Server:
         message = dict()
         message['type'] = 'SHUF0'
         message['stock'] = self.pseudoDeck
-
-        plainText = json.dumps(message).encode()
-        cipherText = security.aesEncrypt(plainText,self.sessionKey[client])
-        client.sendall(cipherText)
+        plainText = pickle.dumps(message)
+        cipherText = security.aesEncrypt( plainText,self.sessionKey[client])
+        self.conn[client].sendall(cipherText)
         print('Pseudonymized stock sent to',client)
 
     def recieveShuf1(self, client):
         cipherText = self.conn[client].recv(4096)
         plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
-        message = json.loads(plainText)
+        message = pickle.loads(plainText)
 
         if not message['type'] == 'SHUF1':
             raise Exception('Wrong message type "{}". Expected: "SHUF1".', message['type'])
@@ -163,7 +162,7 @@ class Server:
         
         msg = {'type': "start_series"}
         for player in self.players:
-            self.conn[player].sendall(json.dumps(msg).encode())
+            self.conn[player].sendall(pickle.dumps(msg))
             time.sleep(0.02)
 
         input("\nPress a key to START")
@@ -176,7 +175,7 @@ class Server:
             msg = {'type': "new_game", 'scores': self.scores}
             for player in self.players:
                 print("Player " + player + " -> " + str(self.scores[player]) + " points.")
-                self.conn[player].sendall(json.dumps(msg).encode())
+                self.conn[player].sendall(pickle.dumps(msg))
                 time.sleep(0.02)
             for player in self.players:
                 if(self.scores[player] >= 100): #alterar para 100
@@ -184,7 +183,7 @@ class Server:
                     print("Player " + player + " won the series!!!")
                     msg={'type': "DISCONNECT", 'player': player, 'points': self.scores[player]}
                     for player in self.players:
-                        self.conn[player].sendall(json.dumps(msg).encode())
+                        self.conn[player].sendall(pickle.dumps(msg))
                         time.sleep(0.02)
                     end = 1
                     break
@@ -194,8 +193,7 @@ class Server:
 
         msg={'type': "started_game"}
         for player in self.players:
-            print("haha")
-            self.conn[player].sendall((json.dumps(msg).encode()))
+            self.conn[player].sendall((pickle.dumps(msg)))
             time.sleep(0.02)
 
         #flag for the end of the game

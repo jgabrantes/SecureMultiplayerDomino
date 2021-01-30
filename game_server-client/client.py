@@ -42,14 +42,14 @@ class Client:
               'session_key': self.SESSION_KEY,
               "hashed_public_key": security.shaHash(security.rsaDumpKey(PUBLIC_KEY))  }
 
-        plainText = json.dumps(msg).encode()
+        plainText = pickle.dumps(msg)
         cipherText = security.rsaEncrypt(plainText, SERVER_PUBLIC_KEY)
         self.s.sendall(cipherText)
         
         #recieve auth1----------------------------------------------------------
         cipherText = self.s.recv(4096)
         plainText = security.aesDecrypt(cipherText,self.SESSION_KEY)
-        message = json.loads(plainText)
+        message = pickle.loads(plainText)
 
         if not message['type'] == 'AUTH1':
             raise Exception('Wrong message type "{}". Expected: "AUTH1".', message['type'])
@@ -67,7 +67,7 @@ class Client:
         message['public_key']= security.rsaDumpKey(PUBLIC_KEY)
        
 
-        plainText = json.dumps(message).encode()
+        plainText = pickle.dumps(message)
         cipherText = security.aesEncrypt(plainText,self.SESSION_KEY)
 
         self.s.sendall(cipherText)
@@ -78,13 +78,13 @@ class Client:
         while running:
 
             try:
-                data = self.s.recv(4096)
+                data = self.s.recv(16384)
                 if data:
                     try:
                         data = security.aesDecrypt(data, self.SESSION_KEY)
-                        data = json.load(data)
+                        data = pickle.loads(data)
                     except:
-                        data = json.loads(data)
+                        data = pickle.loads(data)
                     
                     self.type = data['type']
 
@@ -175,11 +175,14 @@ class Client:
                         print("The player " + winner + " wins the game with " +  str(points) + " points!\n")
                         running = 0
                     elif(self.type == 'SHUF0'):
-                        self.recieveShuf0(data['stock'])
+                        self.recieveShuf0(data)
+    
+
             except socket.error as e:
                 print(e)
             
     def recieveShuf0(self, stock):
+        print(stock)
         self.STOCK = stock
         print("Pseudonymized stock recieved from the Server")
 
@@ -197,7 +200,7 @@ class Client:
         message['type'] = 'SHUF1'
         message['stock'] = self.STOCK
 
-        plainText = json.dumps(message)
+        plainText = pickle.dumps(message)
         cipherText = security.aesEncrypt(plainText, self.SESSION_KEY)
         self.s.sendall(cipherText)
         print("Shuffled Stock sent to Server")
