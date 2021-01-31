@@ -33,7 +33,7 @@ class C_Card:
         self.infoCC = self.infoCC()
     	
 
-
+    #Load de todos os certificados para usar o CC
     def loadCertificate(self):
         cert_root = ()
         cert_trust = ()
@@ -54,7 +54,7 @@ class C_Card:
                 
             crl = crl + (tmp,)
 
-        print("Loaded 2!")
+        print("Loaded certificate(CRL)!")
 
         for c in listdir(dir[1]):
             try:
@@ -98,16 +98,15 @@ class C_Card:
                 else:
                     cert_root = cert_root + (raiz,)
 
-        print("All loaded with sucess!")
+        print("All certificates loaded with sucess(Root and Auth)!")
 
         return st
 
     #get certificates  -  sessionId - identifica o jogar com cartão
 
     def getCerts(self,sessionId):
-        AUTHENTICATION_CERT =  "CITIZEN AUTHENTICATION CERTIFICATE"
-
-        info = self.session[sessionId].findObjects(template = ([(PyKCS11.CKA_CLASS, PyKCS11.CKO_CERTIFICATE), (PyKCS11.CKA_LABEL, AUTHENTICATION_CERT)]))
+    
+        info = self.session[sessionId].findObjects(template = ([(PyKCS11.CKA_CLASS, PyKCS11.CKO_CERTIFICATE), (PyKCS11.CKA_LABEL,"CITIZEN AUTHENTICATION CERTIFICATE")]))
 
         try:
             file_der = bytes([i.to_dict()['CKA_VALUE']for i in info ][0])
@@ -124,7 +123,7 @@ class C_Card:
                 return None
 
             else: 
-                print("Loaded 1!")
+                print("Loaded certificate from CC!")
                 cert = x509.load_pem_x509_certificate(cert,default_backend())
 
                 return cert
@@ -137,17 +136,12 @@ class C_Card:
         print("#")
         name = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
         print( name)
-        #serial_numb =  certificate.subject.get_attributes_for_oid(NameOID.SERIAL_NUMBER)[0].value
 
         return name
 
     #inicilização
     def initialization(self):
-        AUTHENTICATION_CERT = "CITIZEN AUTHENTICATION CERTIFICATE"
-        AUTHENTICATION_KEY  = "CITIZEN AUTHENTICATION KEY"
-        SIGNATURE_CERT = "CITIZEN SIGNATURE CERTIFICATE"
-        SIGNATURE_KEY  = "CITIZEN SIGNATURE KEY"
-
+        
         try:
             pkcs11 = PyKCS11Lib()
             pkcs11.load(self.lib)
@@ -156,12 +150,11 @@ class C_Card:
 
         else:
             try:
-                print("Só para ficar binito")
+                print("Starting configuration: ")
                 self.slots = pkcs11.getSlotList(tokenPresent = True)
                 print("Found "+ str(len(self.slots))+" slots!")
 
                 if len(self.slots) < 1:
-                    print("okokokokoko")
                     exit(-1)
                 slot_list = []
                 for i in range(0,len(self.slots)):
@@ -232,12 +225,11 @@ class C_Card:
 
         return 0
 
-    #Login - entrar com o cartão
+    #Login - entrar com o cartão prints 2x and i dont know why
     def login (self, slot):
         session = self.session[0]
 
         pin = None
-        print("AQUIIIIII")
         pin =  input("Pin : ")
         try:
             session.login(pin)
@@ -250,39 +242,4 @@ class C_Card:
         session.logout()
         session.closeSession()
 
-
-# if __name__ == '__main__':
-#     try:
-#         pteid = C_Card() 
-#         info = pteid.infoCC
-#         slot = -1
-
-#         if len(pteid.session) > 0:
-#             temp = ''.join('Slot{:3d}-> Fullname: {:10s}\n'.format(i, info) for i in range(0, len(pteid.slots)))
-
-#             while slot < 0 or slot > len(pteid.session):
-#                 slot = input("Available Slots: \n{:40s} \n\nWhich Slot do you wish to use? ".format(temp))
-#                 if slot.isdigit():
-#                     slot = int(slot)
-#                 else:
-#                     slot = -1
-#         for i in range(0, len(pteid.session)):
-#             if slot != i:
-#                 pteid.session[i].closeSession()
-
-#         st1r = pteid.getCerts(slot)
-#         print("\nIs this certificate valid: ", pteid.cert_verf(st1r))
-
-#         pteid.login(slot)
-
-#         datatobeSigned = "Random Randomly String"
-#         signedData = pteid.sign(slot, datatobeSigned)
-
-#         print(datatobeSigned + "\n")
-#         if (pteid.sign_verf(pteid.getCerts(slot), bytes(datatobeSigned, "utf-8"), signedData)):
-#             print("Verified")
-
-#     except KeyboardInterrupt:
-#         pteid.logout(slot)
-#         pteid.session[slot].closeSession()   
     
