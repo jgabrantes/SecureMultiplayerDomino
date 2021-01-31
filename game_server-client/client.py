@@ -20,7 +20,7 @@ class Client:
         self.STOCK = []
         self.hand=[]
         self.board=[]            
-        self.shufMap = []
+        self.shufMap = {}
         self.type = ''
         PUBLIC_KEY, PRIVATE_KEY = security.rsaKeyPair()
         SERVER_PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
@@ -244,10 +244,33 @@ class Client:
                         self.send_comm1()
                     elif(self.type == 'COMM2'):
                         self.recieve_comm2(data['commits'])
+                    elif(self.type == 'REVL0'):
+                        self.recieveRevl0(data['stock'])
+                    elif(self.type == 'REVL1'):
+                        self.recieveRevl1(data['keys_dict'])
 
             except socket.error as e:
                 print(e)
-            
+
+    def recieveRevl1(self, keys_dict):
+        print("Keys for decrypting received\n")
+        for i, pseudotile in enumerate(self.pseudohand):
+            key = keys_dict[pseudotile]
+            uncipheredtile = security.aesDecrypt(pseudotile,key)
+            self.pseudohand[i] = pickle.loads(uncipheredtile)
+        print("Hand decrypted")
+    
+    def recieveRevl0(self, stock):
+            keys_dict = {}
+            lista = self.shufMap.keys()  #tiles
+            for x in stock:
+                if x not in lista:
+                    keys_dict[x] = self.shufMap[x]
+            message = {'type': "REVL1", 'keys_dict': keys_dict}
+            plainText = pickle.dumps(message)
+            self.s.sendall(plainText)
+            time.sleep(0.1)
+
     def recieveSel0(self, stock):
         self.STOCK = stock
         print("Stock recieved for selection from the Server")
@@ -273,14 +296,12 @@ class Client:
         for Ti in self.STOCK:
             Ki = security.aesKey()
             if(len(self.shufMap) != 0):
-                for elem in self.shufMap:
-                    if Ki in elem:
-                        Ki = security.aesKey()
-                        
+                if Ki in self.shufMap.values():
+                    Ki = security.aesKey()                     
             plainText = pickle.dumps(Ti)
             Ci = security.aesEncrypt(plainText,Ki)
             self.STOCK[index] = Ci
-            self.shufMap.append((Ci, Ki))
+            self.shufMap[Ci] = Ki
             index += 1
 
         random.shuffle(self.STOCK)

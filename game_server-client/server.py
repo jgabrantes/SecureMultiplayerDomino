@@ -138,7 +138,6 @@ class Server:
 
     def sendShuf0(self, client):
         message = dict()
-        print(len(self.pseudoDeck))
         message['type'] = 'SHUF0'
         message['stock'] = self.pseudoDeck
         plainText = pickle.dumps(message)
@@ -230,7 +229,29 @@ class Server:
         message['commits'] = self.COMMITS
 
         plainText = pickle.dumps(message)
-        self.conn[client].sendall(plainText)            
+        self.conn[client].sendall(plainText)   
+
+    def revelation_stage(self):
+        lista_players = copy.deepcopy(self.players)
+        lista_players.reverse()
+        for player in lista_players:
+            self.send_revl0(player)
+            self.receive_revl1(player)    
+
+    def send_revl0(self,player):
+        message = {'type': "REVL0", 'stock': self.pseudoDeck}
+        plainText = pickle.dumps(message)
+        self.conn[player].sendall(plainText)
+        print("Revelations asked to player " + player + "\n" )
+    
+    def receive_revl1(self, player):
+        plainText = self.conn[player].recv(self.message_size)
+        data = pickle.loads(plainText)
+        message = {'type': "REVL1", 'keys_dict': data['keys_dict']}
+        message = pickle.dumps(message)
+        for p in self.players:
+            self.conn[p].sendall(message)   
+            time.sleep(0.1)        
 
             
 
@@ -301,8 +322,15 @@ class Server:
         print("Selection Stage\n")
         self.selection_stage()
 
+        #Commitment Stage
         print("Commitment Stage\n")
         self.commitment_stage()
+
+        #Revelation Stage
+        print("Revelation Stage\n")
+        self.revelation_stage()
+
+
         #first play in game, it is reseted if no doubles are drawn
         has_5pieces = 0
         while(not has_5pieces):
