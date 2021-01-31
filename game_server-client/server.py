@@ -38,6 +38,7 @@ class Server:
         self.pseudoDeck = []
         self.sessKeys= []
         self.Ntiles = 40
+        self.has5 = {}
         self.message_size = 1048576
       
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
@@ -151,6 +152,7 @@ class Server:
         global STOCK
         STOCK = message['stock']
         print('Shuffled and crypted Stock recieved from',client) 
+    
     # Not yet done    
     def saveScore(self,points):
         #message = dict()
@@ -167,6 +169,26 @@ class Server:
         with open('score.txt', 'w') as wr:
             wr.write('\n'.join('%s %s' % x for x in cipherText))
         print("Score saved")
+    
+    def selection_stage(self):
+        for p in self.players:
+            self.has5[p] = False
+        
+        
+        while(True):
+            
+
+            #codigo
+
+            #termination condition
+            count = 0
+            for p in self.players:
+                if(self.has5[p]):
+                    count += 1
+            if(count == self.nplayers):
+                break
+            
+
        
     def play(self):
     
@@ -229,10 +251,13 @@ class Server:
             self.sendShuf0(player)
             self.recieveShuf1(player)
             self.pseudoDeck = STOCK
+        
+        #Selection Stage
+        print("Selection Stage\n")
+        self.selection_stage()
 
         #first play in game, it is reseted if no doubles are drawn
         has_5pieces = 0
-        
         while(not has_5pieces):
             
             #send 5 random tile to each player
