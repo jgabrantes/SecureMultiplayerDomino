@@ -7,7 +7,7 @@ import socket
 import sys
 import time
 import pickle
-import crypt
+#import crypt
 import security
 import json
 
@@ -149,7 +149,22 @@ class Server:
         global STOCK
         STOCK = message['stock']
         print('Shuffled and crypted Stock recieved from',client) 
-
+    # Not yet done    
+    def saveScore(self,points):
+        #message = dict()
+        #message['type'] = 'SCORE'
+        auxScore = ()
+        #f= open('score.txt', 'r')
+        #cipherText = f.read()
+        #plainText = security.aesDecrypt(cipherText, self.sessionKey[name])
+        #message = pickle.loads(plainText)
+        for name in self.players:
+            auxScore = (name,points)
+        plainText = pickle.dumps(auxScore)  
+        cipherText = security.aesEncrypt(plainText,self.sessionKey[name])
+        with open('score.txt', 'w') as wr:
+            wr.write('\n'.join('%s %s' % x for x in cipherText))
+        print("Score saved")
        
     def play(self):
     

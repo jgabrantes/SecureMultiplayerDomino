@@ -4,7 +4,7 @@ import sys
 import random
 import string
 import pickle
-import crypt
+#import crypt
 import security
 import json
 
@@ -23,6 +23,15 @@ class Client:
         SERVER_PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         self.SESSION_KEY = security.aesKey()
 
+        # This is for testing
+        self.cheatsOn = True
+        self.cheat_stack =   [(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),
+                                (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),
+                                (2,2),(2,3),(2,4),(2,5),(2,6),
+                                (3,3),(3,4), (3,5),(3,6),
+                                (4,4),(4,5),(4,6),
+                                (5,5),(5,6),
+                                (6,6)]
 
         #Authentication Stage Start--------------------------------------
         print("Authentication Stage\n")
@@ -225,9 +234,36 @@ class Client:
                 possible_plays.append((x,'l'))
             if(x[0] == right or x[1] == right):
                 possible_plays.append((x,'r'))   
-        if(len(possible_plays)==0):
+        if(len(possible_plays)==0) and (self.cheatsOn==False):
             print("No valid plays, player must draw from stack!\n")
             return None 
+
+        # Gets best hand, without getting a random piece    
+        elif (len(possible_plays)==0) and (self.cheatsOn==True): 
+            for x in self.cheat_stack:
+                if(x[0] == left or x[1] == left):
+                    possible_plays.append((x,'l'))
+                if(x[0] == right or x[1] == right):
+                    possible_plays.append((x,'r'))
+            print("I CHEATED")        
+            max = 0
+            choosen_one = 0
+            for j in range(0,len(possible_plays)):
+                value = possible_plays[j][0][0] + possible_plays[j][0][1]
+                if(value>max):
+                    max = value
+                    choosen_one = j
+            play = possible_plays[choosen_one]
+            self.hand.remove(self.hand[0])
+            print("Possible plays:")
+            print(possible_plays)
+            print("\n")
+            print("Tile Played:")
+            self.print_board([play[0]])
+            if(play[1] == 'r'):
+                print("Played on the right of the board!\n")
+            else:
+                print("Played on the left of the board!\n")   
         else:
             max = 0
             choosen_one = 0
