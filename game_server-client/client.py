@@ -4,7 +4,7 @@ import sys
 import random
 import string
 import pickle
-import crypt
+#import crypt
 import security
 import json
 from C_Card import C_Card as c_card
@@ -256,13 +256,27 @@ class Client:
                         self.recieveRevl0(data['stock'])
                     elif(self.type == 'REVL1'):
                         self.recieveRevl1(data['keys_dict'])
+                    elif(self.type == 'DEAP0'):
+                        self.recieveDeap0()                              
+                    elif(self.type == 'test'):
+                        print(self.pseudohand)    
 
             except socket.error as e:
                 print(e)
+    
+    def recieveDeap0(self):
+        size = len(self.pseudohand)
+        array = [size]
+        for x in self.pseudohand:
+            public,private=security.rsaKeyPair()
+            array[x[0]]
+
+            
 
     def recieveRevl1(self, keys_dict):
         print("Keys for decrypting received\n")
         for i, pseudotile in enumerate(self.pseudohand):
+            #print(pseudotile)
             key = keys_dict[pseudotile]
             uncipheredtile = security.aesDecrypt(pseudotile,key)
             self.pseudohand[i] = pickle.loads(uncipheredtile)
@@ -271,8 +285,8 @@ class Client:
     def recieveRevl0(self, stock):
             keys_dict = {}
             lista = self.shufMap.keys()  #tiles
-            for x in stock:
-                if x not in lista:
+            for x in lista:
+                if x not in stock:
                     keys_dict[x] = self.shufMap[x]
             message = {'type': "REVL1", 'keys_dict': keys_dict}
             plainText = pickle.dumps(message)

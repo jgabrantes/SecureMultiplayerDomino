@@ -7,7 +7,7 @@ import socket
 import sys
 import time
 import pickle
-import crypt
+#import crypt
 import security
 import json
 import copy
@@ -237,7 +237,12 @@ class Server:
             self.conn[p].sendall(message)   
             time.sleep(0.1)        
 
-            
+    def deanomyzation_preparation(self):
+        array = [5*self.nplayers]
+        message={'type':'DEAP0', 'array':array}
+        for p in self.players:
+            self.conn[p].sendall(message)
+            time.sleep(0.1)
 
        
     def play(self):
@@ -313,7 +318,17 @@ class Server:
         #Revelation Stage
         print("Revelation Stage\n")
         self.revelation_stage()
+       
+        '''
+        message={'type': "test"}
+        message= pickle.dumps(message)
+        for p in self.players:
+            self.conn[p].sendall(message)
+        '''
 
+        # Tile de-anonymization 1
+        print("De-anonymization Preparation Stage")
+        self.deanomyzation_preparation()
 
         #first play in game, it is reseted if no doubles are drawn
         has_5pieces = 0
@@ -468,7 +483,6 @@ class Server:
         return inverted_tile
             
     
-
 
     
     #returns a copy of the stack
