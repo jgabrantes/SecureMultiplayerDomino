@@ -45,6 +45,7 @@ class Server:
         self.Ntiles = 40
         self.has5 = {}
         self.message_size = 1048576
+        self.played_tiles= ()
       
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
@@ -156,23 +157,6 @@ class Server:
         global STOCK
         STOCK = message['stock']
         print('Shuffled and crypted Stock recieved from',client) 
-    
-    # Not yet done    
-    def saveScore(self,points):
-        #message = dict()
-        #message['type'] = 'SCORE'
-        auxScore = ()
-        #f= open('score.txt', 'r')
-        #cipherText = f.read()
-        #plainText = security.aesDecrypt(cipherText, self.sessionKey[name])
-        #message = pickle.loads(plainText)
-        for name in self.players:
-            auxScore = (name,points)
-        plainText = pickle.dumps(auxScore)  
-        cipherText = security.aesEncrypt(plainText,self.sessionKey[name])
-        with open('score.txt', 'w') as wr:
-            wr.write('\n'.join('%s %s' % x for x in cipherText))
-        print("Score saved")
     
     def send_sel0(self, client):
         message = {'type': 'SEL0', 'stock': self.pseudoDeck}
@@ -391,6 +375,13 @@ class Server:
                 if data:
                     data = pickle.loads(data)
                     tile_toplay = data['tile_toplay']
+                    if tile_toplay in self.played_tiles and tile_toplay != None:
+                       print("Error: That tile was already played.\n")
+                       print("Player"+ data['next_player'] + "is cheating. Game will end")
+                       break
+                    else:
+                        if tile_toplay != None:
+                            self.played_tiles += tile_toplay
                     numtiles_inhand = data['numtiles_inhand']
                     time.sleep(0.2)
             except socket.error as e:

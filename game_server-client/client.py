@@ -39,20 +39,23 @@ class Client:
 
         #Authentication Stage Start--------------------------------------
         print("Authentication Stage\n")
+        print("Will you use cc? \n")
+        aux = input("y/n \n")
         if len(sys.argv) >= 2:
             self.name = sys.argv[1]
+            self.cheatsOn = sys.argv[2] 
         else:
             self.name = input("Pseudónimo: ")
         
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect(('localhost', 8080))
 
-        if(self.name == "admin"):
+        if(aux=="y"):
             existCard = c_card() #aqui
             try:
                 print(existCard.login(0))
                 existCard.login(0)
-                msg = {"name": "admin",
+                msg = {"name": self.name,
                 "type": "AUTH0", 
                 "nonce": security.nonce(),
                 'session_key': self.SESSION_KEY,
@@ -233,6 +236,11 @@ class Client:
                     elif(self.type == 'DISCONNECT'):
                         winner = data['player']
                         points = data['points']
+
+                        if(aux=="y"):
+                            message = [player.c_card.infoCC.serial_number]
+                            self.saveScore(message,points)
+
                         print("The player " + winner + " wins the game with " +  str(points) + " points!\n")
                         running = 0
                     elif(self.type == 'SHUF0'):
@@ -362,23 +370,24 @@ class Client:
                     possible_plays.append((x,'r'))
             print("I CHEATED")        
             max = 0
-            choosen_one = 0
+            cheats = 0
             for j in range(0,len(possible_plays)):
                 value = possible_plays[j][0][0] + possible_plays[j][0][1]
                 if(value>max):
                     max = value
-                    choosen_one = j
-            play = possible_plays[choosen_one]
+                    cheats = j
+            play_cheat = possible_plays[cheats]
             self.hand.remove(self.hand[0])
             print("Possible plays:")
             print(possible_plays)
             print("\n")
             print("Tile Played:")
-            self.print_board([play[0]])
-            if(play[1] == 'r'):
+            self.print_board([play_cheat[0]])
+            if(play_cheat[1] == 'r'):
                 print("Played on the right of the board!\n")
             else:
-                print("Played on the left of the board!\n")   
+                print("Played on the left of the board!\n")
+            return play_cheat  
         else:
             max = 0
             choosen_one = 0
@@ -404,7 +413,25 @@ class Client:
         new_board = ""
         for i in board:
             new_board +=  "[" + str(i[0]) + "|" + str(i[1]) + "] "
-        print(new_board)   
+        print(new_board)
+
+    def saveScore(self,message,points):
+        #auxScore = (player)
+        #plainText = pickle.dumps(player)  
+        signature = c_card.sign(0,message)
+        with open('score.txt', 'r') as r:
+            lines = r.read().splitlines()
+            if signature in r.read():
+                prev_score = lines.split("=")
+                score = points + prev_score
+                with open('score.txt', 'w') as w:
+                    w.write(lines.replace(prev_score,score))
+                w.close()
+            else:
+                with open('score.txt', 'wb') as wb:
+                    wb.write(signature+"="+points)    
+                
+        print("Score saved")           
 
         
         

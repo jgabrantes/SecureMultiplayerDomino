@@ -25,7 +25,8 @@ class C_Card:
 
     def __init__(self):
         self.pkcs11 = PyKCS11.PyKCS11Lib()
-        self.lib = "libpteidpkcs11.so"
+        #self.lib = "libpteidpkcs11.so"  #Linux
+        self.lib = "pteidpkcs11.dll"     #Windows
         self.pkcs11.load(self.lib)
         self.certificate = None
         self.st = self.loadCertificate()
@@ -136,8 +137,10 @@ class C_Card:
         print("#")
         name = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
         print( name)
+        serial_number = cert.subject.get_attributes_for_oid(NameOID.SERIAL_NUMBER)[0].value
+        serial_number = int(serial_number[2:10])
 
-        return name
+        return name, serial_number
 
     #inicilização
     def initialization(self):
