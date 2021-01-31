@@ -10,6 +10,7 @@ import pickle
 #import crypt
 import security
 import json
+import C_Card
 
 class Server:
     

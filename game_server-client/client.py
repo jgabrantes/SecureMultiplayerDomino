@@ -7,6 +7,9 @@ import pickle
 import crypt
 import security
 import json
+from C_Card import C_Card as c_card
+from C_Card import PinError
+existCard = None # see if can get authentication CC
 
 
 class Client:
@@ -45,46 +48,92 @@ class Client:
         self.s.connect(('localhost', 8080))
 
 
+        if(self.name == "admin"):
+            existCard = c_card() #aqui
+            try:
+                print(existCard.login(0))
+                existCard.login(0)
+                msg = {"name": "admin",
+                "type": "AUTH0", 
+                "nonce": security.nonce(),
+                'session_key': self.SESSION_KEY,
+                "hashed_public_key": security.shaHash(security.rsaDumpKey(existCard.getPublicKey()))  }
+                plainText = pickle.dumps(msg)
+                cipherText = security.rsaEncrypt(plainText, SERVER_PUBLIC_KEY)
+                self.s.sendall(cipherText)
+                
+                #recieve auth1----------------------------------------------------------
+                cipherText = self.s.recv(self.message_size)
+                plainText = security.aesDecrypt(cipherText,self.SESSION_KEY)
+                message = pickle.loads(plainText)
+
+                if not message['type'] == 'AUTH1':
+                    raise Exception('Wrong message type "{}". Expected: "AUTH1".', message['type'])
+
+                signature = message['sign']
+
+                if not security.rsaVerify(msg['nonce'],signature,SERVER_PUBLIC_KEY):
+                    raise Exception('Invalid signature of the nonce sent in "AUTH0".')
+
+                #send auth2--------------------------------------------------------------
+                signature = existCard.sign(0,message['nonce'])
+                
+                message['type'] = 'AUTH2'
+                message['sign'] = signature
+                message['public_key']= security.rsaDumpKey(existCard.getPublicKey())
+            
+
+                plainText = pickle.dumps(message)
+                cipherText = security.aesEncrypt(plainText,self.SESSION_KEY)
+
+                self.s.sendall(cipherText)
+
+                print("Authentication sucessfull, you connected with pseudonym "+self.name)
+
+                        
+            except PinError as e:
+                return None
+
+        else:
+
+            #send auth0-----------------------------------------------------
+            msg = {"name": self.name,
+                "type": "AUTH0", 
+                "nonce": security.nonce(),
+                'session_key': self.SESSION_KEY,
+                "hashed_public_key": security.shaHash(security.rsaDumpKey(PUBLIC_KEY))  }
+
+            plainText = pickle.dumps(msg)
+            cipherText = security.rsaEncrypt(plainText, SERVER_PUBLIC_KEY)
+            self.s.sendall(cipherText)
+            
+            #recieve auth1----------------------------------------------------------
+            cipherText = self.s.recv(self.message_size)
+            plainText = security.aesDecrypt(cipherText,self.SESSION_KEY)
+            message = pickle.loads(plainText)
+
+            if not message['type'] == 'AUTH1':
+                raise Exception('Wrong message type "{}". Expected: "AUTH1".', message['type'])
+
+            signature = message['sign']
+
+            if not security.rsaVerify(msg['nonce'],signature,SERVER_PUBLIC_KEY):
+                raise Exception('Invalid signature of the nonce sent in "AUTH0".')
+
+            #send auth2--------------------------------------------------------------
+            signature = security.rsaSign(message['nonce'], PRIVATE_KEY)
+
+            message['type'] = 'AUTH2'
+            message['sign'] = signature
+            message['public_key']= security.rsaDumpKey(PUBLIC_KEY)
         
 
-        #send auth0-----------------------------------------------------
-        msg = {"name": self.name,
-               "type": "AUTH0", 
-              "nonce": security.nonce(),
-              'session_key': self.SESSION_KEY,
-              "hashed_public_key": security.shaHash(security.rsaDumpKey(PUBLIC_KEY))  }
+            plainText = pickle.dumps(message)
+            cipherText = security.aesEncrypt(plainText,self.SESSION_KEY)
 
-        plainText = pickle.dumps(msg)
-        cipherText = security.rsaEncrypt(plainText, SERVER_PUBLIC_KEY)
-        self.s.sendall(cipherText)
-        
-        #recieve auth1----------------------------------------------------------
-        cipherText = self.s.recv(self.message_size)
-        plainText = security.aesDecrypt(cipherText,self.SESSION_KEY)
-        message = pickle.loads(plainText)
+            self.s.sendall(cipherText)
 
-        if not message['type'] == 'AUTH1':
-            raise Exception('Wrong message type "{}". Expected: "AUTH1".', message['type'])
-
-        signature = message['sign']
-
-        if not security.rsaVerify(msg['nonce'],signature,SERVER_PUBLIC_KEY):
-           raise Exception('Invalid signature of the nonce sent in "AUTH0".')
-
-        #send auth2--------------------------------------------------------------
-        signature = security.rsaSign(message['nonce'], PRIVATE_KEY)
-
-        message['type'] = 'AUTH2'
-        message['sign'] = signature
-        message['public_key']= security.rsaDumpKey(PUBLIC_KEY)
-       
-
-        plainText = pickle.dumps(message)
-        cipherText = security.aesEncrypt(plainText,self.SESSION_KEY)
-
-        self.s.sendall(cipherText)
-
-        print("Authentication sucessfull, you connected with pseudonym " + self.name)
+            print("Authentication sucessfull, you connected with pseudonym " + self.name)
 
         running = 1
         while running:
