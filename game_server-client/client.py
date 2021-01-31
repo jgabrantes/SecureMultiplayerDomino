@@ -315,7 +315,7 @@ class Client:
     def recieve_comm2(self, commits):
         global COMMITS
         COMMITS = commits
-        print"Recieved all the Bit Commitments and the Pseudonimized Stock from the server")
+        print("Recieved all the Bit Commitments and the Pseudonimized Stock from the server")
 
     
     #check player possible next plays and picks the play with more value, return None if no play is possible
