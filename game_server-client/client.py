@@ -16,7 +16,7 @@ class Client:
 
     def __init__(self):
 
-        
+        self.pseudohand = []
         self.STOCK = []
         self.hand=[]
         self.board=[]            
@@ -46,7 +46,6 @@ class Client:
         
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect(('localhost', 8080))
-
 
         if(self.name == "admin"):
             existCard = c_card() #aqui
@@ -95,7 +94,7 @@ class Client:
                 return None
 
         else:
-
+       
             #send auth0-----------------------------------------------------
             msg = {"name": self.name,
                 "type": "AUTH0", 
@@ -239,11 +238,29 @@ class Client:
                     elif(self.type == 'SHUF0'):
                         self.recieveShuf0(data['stock'])
                         self.sendShuf1()
+                    elif(self.type == 'SEL0'):
+                        self.recieveSel0(data['stock'])
     
 
             except socket.error as e:
                 print(e)
             
+    def recieveSel0(self, stock):
+        self.STOCK = stock
+        print("Stock recieved for selection from the Server")
+        if random.randint(1,100) <= 5:
+            tile = random.choice(self.STOCK)
+            self.pseudohand.append(tile)
+            self.STOCK.remove(tile)
+            message = {'type': 'tile_accepted', 'stock': self.STOCK}
+        else:
+            message = {'type': 'tile_passed'}        
+        plainText = pickle.dumps(message)
+        cipherText = security.aesEncrypt(plainText, self.SESSION_KEY)
+        self.s.sendall(cipherText)
+        time.sleep(0.1)
+
+
     def recieveShuf0(self, stock):
         self.STOCK = stock
         print("Pseudonymized stock recieved from the Server")

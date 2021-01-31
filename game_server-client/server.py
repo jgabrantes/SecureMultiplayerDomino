@@ -7,9 +7,10 @@ import socket
 import sys
 import time
 import pickle
-#import crypt
+import crypt
 import security
 import json
+import copy
 import C_Card
 
 class Server:
@@ -143,7 +144,7 @@ class Server:
         print('Pseudonymized stock sent to',client)
 
     def recieveShuf1(self, client):
-        cipherText = self.conn[client].recv(1048576)
+        cipherText = self.conn[client].recv(self.message_size)
         plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
         message = pickle.loads(plainText)
 
@@ -171,23 +172,36 @@ class Server:
             wr.write('\n'.join('%s %s' % x for x in cipherText))
         print("Score saved")
     
+    def send_sel0(self, client):
+        message = {'type': 'SEL0', 'stock': self.pseudoDeck}
+        plainText = pickle.dumps(message)
+        cipherText = security.aesEncrypt(plainText,self.sessionKey[client])
+        self.conn[client].sendall(cipherText)
+        time.sleep(0.1)
+
+    def recieve_sel1(self, client):
+        cipherText = self.conn[client].recv(self.message_size)
+        plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
+        message = pickle.loads(plainText)
+        if(message['type'] == 'tile_accepted'):
+            self.pseudoDeck = message['stock']
+            self.has5[client] += 1
+            
     def selection_stage(self):
         for p in self.players:
-            self.has5[p] = False
-        
-        
+            self.has5[p] = 0
+        list_players = copy.deepcopy(self.players)
         while(True):
-            
-
-            #codigo
-
+            player = random.choice(list_players)
+            self.send_sel0(player)
+            self.recieve_sel1(player)
+            if(self.has5[player] == 5):
+                list_players.remove(player)
             #termination condition
-            count = 0
-            for p in self.players:
-                if(self.has5[p]):
-                    count += 1
-            if(count == self.nplayers):
+            if(len(list_players) == 0):
                 break
+
+
             
 
        
