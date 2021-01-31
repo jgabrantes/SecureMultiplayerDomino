@@ -240,7 +240,10 @@ class Client:
                         self.sendShuf1()
                     elif(self.type == 'SEL0'):
                         self.recieveSel0(data['stock'])
-    
+                    elif(self.type == 'COMM0'):
+                        self.send_comm1()
+                    elif(self.type == 'COMM2'):
+                        self.recieve_comm2(data['commits'])
 
             except socket.error as e:
                 print(e)
@@ -248,7 +251,7 @@ class Client:
     def recieveSel0(self, stock):
         self.STOCK = stock
         print("Stock recieved for selection from the Server")
-        if random.randint(1,100) <= 5:
+        if random.randint(1,100) <= 70:
             tile = random.choice(self.STOCK)
             self.pseudohand.append(tile)
             self.STOCK.remove(tile)
@@ -290,6 +293,30 @@ class Client:
         self.s.sendall(cipherText)
         print("Shuffled Stock sent to Server")
 
+    def send_comm1(self):
+        global nonce1, nonce2
+        nonce1 = security.nonce()
+        nonce2 = security.nonce()
+
+        global commit
+        commit = security.shaHash(nonce1+nonce2+str(self.pseudohand))
+        
+        message = dict()
+        message['type'] = 'COMM1'
+        message['nonce1'] = nonce1
+        message['commit'] = commit
+
+        plainText = pickle.dumps(message)
+        cipherText = security.aesEncrypt(plainText, self.SESSION_KEY)
+
+        self.s.sendall(cipherText)
+        print("Commitment to this hand sent")
+
+    def recieve_comm2(self, commits):
+        global COMMITS
+        COMMITS = commits
+
+    
     #check player possible next plays and picks the play with more value, return None if no play is possible
     def pick_possible_play(self):
         possible_plays = []

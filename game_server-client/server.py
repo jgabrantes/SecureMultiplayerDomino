@@ -39,6 +39,9 @@ class Server:
         self.highest_double = None
         self.pseudoDeck = []
         self.sessKeys= []
+        self.commit= []
+        self.nonce1 = []
+        self.COMMITS = {}
         self.Ntiles = 40
         self.has5 = {}
         self.message_size = 1048576
@@ -201,6 +204,33 @@ class Server:
             if(len(list_players) == 0):
                 break
 
+    def commitment_stage(self):
+        for player in self.players:
+            message = dict()
+            message['type'] = 'COMM0'
+            self.conn[player].sendall(pickle.dumps(message))
+            time.sleep(0.1)
+            self.recieve_comm1(player)
+            time.sleep(0.1)
+        self.COMMITS['stock'] = self.pseudoDeck
+        print("Sending the all the BitCommitments to all players")
+        for player in self.players:
+            self.send_comm2(player)
+        
+    def recieve_comm1(self, client):
+        cipherText = self.conn[client].recv(1048576)
+        plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
+        message = pickle.loads(plainText)
+        self.COMMITS[client] = (message['commit'],message['nonce1'])
+        print('Bit commitment of ',client," recieved")
+
+    def send_comm2(self, client):
+        message = dict()
+        message['type'] = "COMM2"
+        message['commits'] = self.COMMITS
+
+        plainText = pickle.dumps(message)
+        self.conn[client].sendall(plainText)            
 
             
 
@@ -271,6 +301,8 @@ class Server:
         print("Selection Stage\n")
         self.selection_stage()
 
+        print("Commitment Stage\n")
+        self.commitment_stage()
         #first play in game, it is reseted if no doubles are drawn
         has_5pieces = 0
         while(not has_5pieces):
