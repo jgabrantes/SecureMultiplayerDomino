@@ -38,6 +38,7 @@ class Server:
         self.pseudoDeck = []
         self.sessKeys= []
         self.Ntiles = 40
+        self.message_size = 1048576
       
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
@@ -60,7 +61,7 @@ class Server:
             conn, addr = s.accept()
             
             #recieve auth0------------------------------------------------------
-            cipherText = conn.recv(4096)
+            cipherText = conn.recv(self.message_size)
             plainText = security.rsaDecrypt(cipherText, PRIVATE_KEY)
             data = pickle.loads(plainText)
 
@@ -90,7 +91,7 @@ class Server:
             self.conn[name].sendall(cipherText)
 
             #recieve auth2-----------------------------------------------------
-            cipherText = self.conn[name].recv(4096)
+            cipherText = self.conn[name].recv(self.message_size)
             print(self.conn[name])
             plainText = security.aesDecrypt(cipherText, self.sessionKey[name])
             message = pickle.loads(plainText)
@@ -113,7 +114,7 @@ class Server:
                 break
 
     def pseudoTile(self):
-        
+        self.pseudoDeck = []
         for i,Ti in enumerate(self.original_stack):
             SESSION_KEY = security.aesKey()
             self.sessKeys.append(SESSION_KEY)
@@ -131,6 +132,7 @@ class Server:
 
     def sendShuf0(self, client):
         message = dict()
+        print(len(self.pseudoDeck))
         message['type'] = 'SHUF0'
         message['stock'] = self.pseudoDeck
         plainText = pickle.dumps(message)
@@ -139,7 +141,7 @@ class Server:
         print('Pseudonymized stock sent to',client)
 
     def recieveShuf1(self, client):
-        cipherText = self.conn[client].recv(16384)
+        cipherText = self.conn[client].recv(1048576)
         plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
         message = pickle.loads(plainText)
 
@@ -285,7 +287,7 @@ class Server:
             time.sleep(0.2)
             
             try:
-                data = self.conn[next_player].recv(4096)
+                data = self.conn[next_player].recv(self.message_size)
                 if data:
                     data = pickle.loads(data)
                     tile_toplay = data['tile_toplay']
@@ -308,7 +310,7 @@ class Server:
                 time.sleep(0.2)
                 
                 try:
-                    data = self.conn[next_player].recv(4096)
+                    data = self.conn[next_player].recv(self.message_size)
                     if data:
                         data = pickle.loads(data)
                         tile_toplay = data['tile_toplay']
@@ -408,7 +410,6 @@ class Server:
 
     def pick_random_tile(self):
         total_tiles = len(self.stack)
-        assert total_tiles<=28
         j = random.randint(0,total_tiles-1)
         tile = self.stack[j]
         del(self.stack[j])
@@ -423,7 +424,7 @@ class Server:
             self.conn[player].sendall(pickle.dumps(msg))
             time.sleep(0.2)
             try:
-                data = self.conn[player].recv(4096)
+                data = self.conn[player].recv(self.message_size)
                 if data:
                     data = pickle.loads(data)
                     points.append(data['points'])

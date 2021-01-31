@@ -4,7 +4,7 @@ import sys
 import random
 import string
 import pickle
-#import crypt
+import crypt
 import security
 import json
 
@@ -22,9 +22,10 @@ class Client:
         PUBLIC_KEY, PRIVATE_KEY = security.rsaKeyPair()
         SERVER_PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         self.SESSION_KEY = security.aesKey()
+        self.message_size = 1048576
 
         # This is for testing
-        self.cheatsOn = True
+        self.cheatsOn = False
         self.cheat_stack =   [(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),
                                 (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),
                                 (2,2),(2,3),(2,4),(2,5),(2,6),
@@ -58,7 +59,7 @@ class Client:
         self.s.sendall(cipherText)
         
         #recieve auth1----------------------------------------------------------
-        cipherText = self.s.recv(4096)
+        cipherText = self.s.recv(self.message_size)
         plainText = security.aesDecrypt(cipherText,self.SESSION_KEY)
         message = pickle.loads(plainText)
 
@@ -83,13 +84,13 @@ class Client:
 
         self.s.sendall(cipherText)
 
-        print("Authentication sucessfull, you connected with pseudonym "+self.name)
+        print("Authentication sucessfull, you connected with pseudonym " + self.name)
 
         running = 1
         while running:
 
             try:
-                data = self.s.recv(16384)
+                data = self.s.recv(self.message_size)
                 if data:
                     try:
                         data = security.aesDecrypt(data, self.SESSION_KEY)
@@ -121,6 +122,7 @@ class Client:
                         print("\n")
                         print("Beggining of the series, the first player to reach 100 points win!\n")
                     elif(self.type == 'started_game'):
+                        self.STOCK = []
                         print("\n")
                         print("Beggining of the game, best of luck for all!\n")
                     elif(self.type == 'new_game'):
@@ -194,7 +196,6 @@ class Client:
                 print(e)
             
     def recieveShuf0(self, stock):
-        print(stock)
         self.STOCK = stock
         print("Pseudonymized stock recieved from the Server")
 
@@ -218,7 +219,6 @@ class Client:
         message = dict()
         message['type'] = 'SHUF1'
         message['stock'] = self.STOCK
-
         plainText = pickle.dumps(message)
         cipherText = security.aesEncrypt(plainText, self.SESSION_KEY)
         self.s.sendall(cipherText)
