@@ -31,12 +31,10 @@ class Server:
         self.scores = {}
         self.conn = {}
         self.addr = {}
-        self.client = {}
         self.hashed_public_key = {}
         self.nonce = {}
         self.sessionKey = {}
         self.consecutive_noplays = 0
-        self.highest_double = None
         self.pseudoDeck = []
         self.sessKeys= []
         self.commit= []
@@ -226,24 +224,6 @@ class Server:
             self.send_revl0(player)
             self.receive_revl1(player)
 
-        for player in lista_players:
-            self.send_revl2(player)
-            time.sleep(0.1)
-            self.receive_revl3(player)
-            time.sleep(0.1)
-        
-    def send_revl2(self,player):
-        message = {'type': "REVL2", 'stock': self.pseudoDeck}
-        plainText = pickle.dumps(message)
-        self.conn[player].sendall(plainText)
-        print("Revelations of the stock asked to player " + player + "\n" )
-    
-    def receive_revl3(self, player):
-        plainText = self.conn[player].recv(self.message_size)
-        data = pickle.loads(plainText)
-        self.pseudoDeck = data['stock']
-        print("Stock updated\n")
-
     def send_revl0(self,player):
         message = {'type': "REVL0", 'stock': self.pseudoDeck}
         plainText = pickle.dumps(message)
@@ -279,7 +259,6 @@ class Server:
             if(count == self.nplayers*5):
                 break
     
-
     def receive_Deap1(self, player):
         data = self.conn[player].recv(self.message_size)
         data = security.aesDecrypt(data, self.sessionKey[player])
@@ -294,7 +273,6 @@ class Server:
         for i,elem in enumerate(stack_tiki):
             if(self.array[i] != None):
                 key =  security.rsaLoadKey(self.array[i])  
-                print(elem)                                     #i = 0,1...  elem = (ti,ki)...
                 encrypted = security.rsaEncrypt(pickle.dumps(elem),key)
                 tiki_tosend.append(encrypted)
             else:
@@ -304,9 +282,30 @@ class Server:
         for p in self.players:
             self.conn[p].sendall(message)
             time.sleep(0.1)
-
-    def play(self):
     
+    def stock_use(self, player, tile):
+        lista_players = copy.deepcopy(self.players)
+        lista_players.reverse()
+        for player in lista_players:
+            self.send_stu0(player, tile)
+            time.sleep(0.1)
+            tile = self.receive_stu1(player)
+            time.sleep(0.1)
+        return tile
+
+    def send_stu0(self,player, tile):
+        message = {'type': "STU0", 'tile': tile}
+        plainText = pickle.dumps(message)
+        self.conn[player].sendall(plainText)
+        print("Revelation asked to player " + player + "\n")
+    
+    def receive_stu1(self, player):
+        plainText = self.conn[player].recv(self.message_size)
+        data = pickle.loads(plainText)
+        return data['tile']
+    
+    def play(self):
+        
         end = 0
         print("Beggining of the game, the first player to reach 100 points win!\n")
         print("Scores:")
@@ -330,7 +329,7 @@ class Server:
             for player in self.players:
                 print("Player " + player + " -> " + str(self.scores[player]) + " points.")
                 self.conn[player].sendall(pickle.dumps(msg))
-                time.sleep(0.02)
+                time.sleep(0.1)
             for player in self.players:
                 if(self.scores[player] >= 100): #alterar para 100
                     print("----------------------------Game Ended----------------------------")
@@ -343,7 +342,20 @@ class Server:
                     break
     
     def play_game(self, n_players, scores):
-        assert n_players>=2 and n_players<=4
+        #initiation
+        self.stack = []
+        self.board =[]
+        self.consecutive_noplays = 0
+        self.pseudoDeck = []
+        self.sessKeys= []
+        self.commit= []
+        self.nonce1 = []
+        self.COMMITS = {}
+        self.has5 = {}
+        self.played_tiles= []
+        self.array = []
+        self.pseudotiles_keys = []
+
 
         msg={'type': "started_game"}
         for player in self.players:
@@ -352,6 +364,8 @@ class Server:
 
         #flag for the end of the game
         game_end = 0
+
+
         
         #pseudonomization stage
         print("Pseudonomization Stage:\n")
@@ -377,66 +391,50 @@ class Server:
         #Revelation Stage
         print("Revelation Stage\n")
         self.revelation_stage()
-       
-        '''
-        message={'type': "test"}
-        message= pickle.dumps(message)
-        for p in self.players:
-            self.conn[p].sendall(message)
-        '''
 
-        # Tile de-anonymization 1
+        # Tile de-anonymization Preparation
         print("De-anonymization Preparation Stage\n")
         self.deanomyzation_preparation()
         
+        # Tile de-anonymization Stage
         print("De-anonymization Stage\n")
         self.deanomyzation_stage()
 
-        #first play in game, it is reseted if no doubles are drawn
-        has_5pieces = 0
-        while(not has_5pieces):
-            
-            #send 5 random tile to each player
-            for i in range(5):
-                for player in self.players:
-                    self.send_random_tile(player)
-
-            if(self.highest_double != None):
-                self.board.append(self.highest_double[0])
-                #next_players refres to the next player to play
-                player_index = self.players.index(self.highest_double[1])
-                if(player_index == self.nplayers - 1):
-                    next_player = self.players[0]
-                else:
-                    next_player = self.players[player_index +1]
-                print("The tile [" + str(self.highest_double[0][0]) + "|" + str(self.highest_double[0][1]) + "] from Player " + self.players[player_index] + " is the highest double tile, and so, the first to be played.\n")
-                print("Board: ")
-                self.print_board(self.board)
-                print("\n")
-
-                msg={'type': 'start_game', 'board': self.board, 'player_double': self.highest_double[1], 'next_player': next_player}
-                for player in self.players:
-                    self.conn[player].sendall(pickle.dumps(msg))
-                time.sleep(0.02)
-
-                has_5pieces=1
-            else: 
-                #When no double tiles are in players hands, the game resets 
-                print("No double tiles in  ame, tiles return to stack to be shuffled again!")
-                msg={'type': 'no_doubles'}
-                for player in self.players:
-                    self.conn[player].sendall(pickle.dumps(msg))
-                time.sleep(0.2)
-            
         #variable to check if there is no more tiles in the stack and the players cant play any more tiles
         self.consecutive_noplays = 0
         #variables to return
         points = 0
         winner = 0
+        self.board = []
+        player = self.players[0]
+        #choose player next play
+        msg={'type': 'play_first'}
+        self.conn[player].send(pickle.dumps(msg))
+        time.sleep(0.1)
         
+        try:
+            data = self.conn[player].recv(self.message_size)
+            if data:
+                data = pickle.loads(data)
+                tile_toplay = data['tile_toplay']
+                self.played_tiles += (tile_toplay, None)
+                self.board = data['board']
+                time.sleep(0.1)
+        except socket.error as e:
+            print(e)
+        
+        msg = {'type': "has_played", 'player': player, 'board': self.board, 'tile': (tile_toplay,None)}
+        for p in self.players:
+            if(p != player):
+                self.conn[player].sendall(pickle.dumps(msg))
+                time.sleep(0.02)
+
+
+        #next_player
+        next_player = self.players[1]
         while(not game_end):
             #send info about game 
-
+            
             print("--------------------Player " + next_player + " plays next!-----------------------------------")
             print("Board:")
             self.print_board(self.board)
@@ -465,17 +463,27 @@ class Server:
                 print(e)
             
             #draw tile if needed
-            while(tile_toplay == None and len(self.stack) != 0):
+            while(tile_toplay == None and len(self.pseudoDeck) != 0): 
+                
+                #Stock Use
+                print("Stock Use")
+                draw_tile = random.choice(self.pseudoDeck)
+                self.pseudoDeck.remove(draw_tile)
+                pseudo_tile = self.stock_use(next_player,draw_tile)
+                tile = security.aesDecrypt(pseudo_tile[1], self.sessKeys[pseudo_tile[0]])
+                tile = pickle.loads(tile)
+
                 print("Sending new random tile from stack to player " + next_player + "\n")
-                draw_tile = self.pick_random_tile()
-                msg={'type': 'send_tile2', 'tile': draw_tile}
-                self.conn[next_player].sendall(pickle.dumps(msg))
-                time.sleep(0.2)
+                msg = {'type': 'send_tile', 'tile': tile}
+                message = pickle.dumps(msg)
+                message = security.aesEncrypt(message, self.sessionKey[next_player])
+                self.conn[next_player].sendall(message)
+                time.sleep(0.1)
 
                 #choose player next play
                 msg={'type': 'play', 'board': self.board}
                 self.conn[next_player].send(pickle.dumps(msg))
-                time.sleep(0.2)
+                time.sleep(0.1)
                 
                 try:
                     data = self.conn[next_player].recv(self.message_size)
@@ -556,29 +564,7 @@ class Server:
         for i in board:
             new_board +=  "[" + str(i[0]) + "|" + str(i[1]) + "] "
         print(new_board)
-    
-    def send_random_tile(self, player):
-        total_tiles = len(self.stack)
-        j = random.randint(0,total_tiles-1)
-        tile = self.stack[j]
-        del(self.stack[j])
-        msg={'type': 'send_tile', 'tile': tile}
-        self.conn[player].sendall(pickle.dumps(msg))
-        time.sleep(0.2)
-        if(tile[0] == tile[1]):
-            if self.highest_double == None:
-                self.highest_double = tile,player
-            else:
-                if (tile[0] + tile[1] > self.highest_double[0][0] + self.highest_double[0][1]):
-                    self.highest_double = tile,player
-
-    def pick_random_tile(self):
-        total_tiles = len(self.stack)
-        j = random.randint(0,total_tiles-1)
-        tile = self.stack[j]
-        del(self.stack[j])
-        return tile
-    
+      
     #return winner and the points he made
     def calculate_points(self):
         point_winner = 0

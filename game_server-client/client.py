@@ -151,50 +151,40 @@ class Client:
                     
                     self.type = data['type']
 
-                    if(self.type == 'start_game'):
-                        self.board = data['board']
-                        player_double = data['player_double']
-                        next_player = data['next_player']
-                        print("\n")
-                        print("Player " + player_double + " had the highest double and so the tile was automatically played.\n")
-                        print("Player " + next_player + " is the next to play.\n")
-                        if(self.board[0] in self.hand):
-                            self.hand.remove(self.board[0])
-                        print("Board:")
-                        self.print_board(self.board)
-                        print("\n")
-                        print("Your hand:")
-                        self.print_board(self.hand)
-                    elif(self.type == 'no_doubles'):
-                        self.hand = []
-                        print("\n")
-                        print("No doubles were drawn! A new shuffle will be initiated!\n")
-                    elif(self.type == 'start_series'):
+                
+                    if(self.type == 'start_series'):
                         print("\n")
                         print("Beggining of the series, the first player to reach 100 points win!\n")
+                    elif(self.type == 'play_first'):
+                        print("\n")
+                        print("You're the first to play!\n")
+                        print("Your hand:")
+                        self.print_board(self.hand)
+                        tile = self.pick_highest()
+                        print("Played " + str(tile) + " as first tile!\n")
+                        self.board.append(tile)
+                        print("\n")
+                        print("Hand after play: ")
+                        self.print_board(self.hand)
+                        print("\n")
+                        print("Board after play:")
+                        self.print_board(self.board)
+                        print("\n")
+                        msg = {"tile_toplay": tile, 'board': self.board}
+                        self.s.sendall(pickle.dumps(msg))
+                        time.sleep(0.1)
                     elif(self.type == 'started_game'):
+                        self.pseudohand = []
                         self.STOCK = []
+                        self.hand=[]
+                        self.board=[]            
+                        self.shufMap = {}   
                         print("\n")
                         print("Beggining of the game, best of luck for all!\n")
                     elif(self.type == 'new_game'):
                         scores = data['scores']
                         print("Scores:")
                         print(scores)
-                        print("\n")
-                    elif(self.type == 'send_tile'):
-                        tile = data['tile']
-                        self.hand.append(tile)
-                        print("\n")
-                        print("Tile received!\n")
-                    elif(self.type == 'send_tile2'):
-                        tile = data['tile']
-                        self.hand.append(tile)
-                        print("No tile to play, asking server to draw tile from stack:\n")
-                        print("Tile received!\n")
-                        print("Your Hand:")
-                        self.print_board(self.hand)
-                        print("Board:")
-                        self.print_board(self.board)
                         print("\n")
                     elif(self.type == 'conf_5tiles'):
                         if(len(self.hand) == 5):
@@ -258,16 +248,29 @@ class Client:
                         self.recieveRevl1(data['keys_dict'])
                     elif(self.type == 'DEAP0'):
                         self.recieveDeap0(data['array']) 
-                    elif(self.type == 'REVL2'):
-                        self.recieveRevl2(data['stock'])
                     elif(self.type == 'DEAS0'):
-                        self.recieveDeas0(data['stack'])                            
-                    elif(self.type == 'test'):
-                        print(self.pseudohand)    
+                        self.recieveDeas0(data['stack']) 
+                    elif(self.type == 'STU0'):
+                        self.recieveStu0(data['tile'])
+                    elif(self.type == 'send_tile'):
+                        self.recieveTile(data['tile'])                         
+                       
 
             except socket.error as e:
                 print(e)
     
+    def recieveTile(self, tile):
+        self.hand.append(tile)
+
+    def recieveStu0(self,tile):
+        key = self.shufMap[tile]
+        uncipheredtile = security.aesDecrypt(tile,key)
+        tile = pickle.loads(uncipheredtile)
+        message = {'type': 'STU1', 'tile': tile}
+        message = pickle.dumps(message)
+        self.s.sendall(message)
+        
+
     def recieveDeas0(self,stack):
         for ptile in self.pseudohand:
             i = ptile[0]
@@ -302,25 +305,10 @@ class Client:
             message = security.aesEncrypt(message, self.SESSION_KEY)
             self.s.sendall(message)
 
-            
-    
-    def recieveRevl2(self, stock):
-        print(len(stock))
-        for i,tile in enumerate(stock):
-            key = self.shufMap[tile]
-            uncipheredtile = security.aesDecrypt(tile,key)
-            stock[i] = pickle.loads(uncipheredtile)
-        message = {'type': "REVL4", 'stock': stock}
-        plainText = pickle.dumps(message)
-        self.s.sendall(plainText)
-        time.sleep(0.1)
-        print("Stock sent back\n")
-
     
     def recieveRevl1(self, keys_dict):
         print("Keys for decrypting received\n")
         for i, pseudotile in enumerate(self.pseudohand):
-            #print(pseudotile)
             key = keys_dict[pseudotile]
             uncipheredtile = security.aesDecrypt(pseudotile,key)
             self.pseudohand[i] = pickle.loads(uncipheredtile)
@@ -489,7 +477,21 @@ class Client:
                 with open('score.txt', 'wb') as wb:
                     wb.write(signature+"="+points)    
                 
-        print("Score saved")           
+        print("Score saved")     
+
+    def pick_highest(self):
+        tile_picked = None
+        max = 0
+        for tile in self.hand:
+            sum = tile[0] + tile[1]
+            if sum >= max:
+                max = sum
+                tile_picked = tile
+        self.hand.remove(tile_picked)
+        return tile_picked
+
+
+
 
         
         
