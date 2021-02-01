@@ -132,14 +132,13 @@ class Server:
             self.pseudotiles_keys = copy.deepcopy(self.pseudoDeck)
 
             
-
     def unpseudoTile(self):
-        
-        self.stack = []
-        for i, Pi in self.pseudoDeck:
+        stack = []
+        for i, Pi in self.pseudotiles_keys:
             jsonText = security.aesDecrypt(Pi, self.sessKeys[i])
             Ti = pickle.loads(jsonText)
-            self.stack.append(Ti)
+            self.stack.append((Ti,self.sessKeys[i]))
+        return stack
             
 
     def sendShuf0(self, client):
@@ -289,11 +288,16 @@ class Server:
             self.array = data['array']
 
     def deanomyzation_stage(self):
-        print("PSEUDODEK:")
-        print(self.pseudoDeck)
-        self.unpseudoTile()
-        print( self.stack)
-
+        stack_tiki = self.unpseudoTile()
+        tiki_tosend = []
+        
+        for i,elem in enumerate(stack_tiki):
+            encrypted = security.rsaEncrypt(pickle.dumps(elem),self.array[i])
+            tiki_tosend.append(encrypted)
+        message = {'type': 'DEAS0', 'stack': tiki_tosend}
+        message = pickle.dumps(message)
+        for p in self.players:
+            self.conn[p].sendall(message)
 
     def play(self):
     
@@ -378,6 +382,7 @@ class Server:
         # Tile de-anonymization 1
         print("De-anonymization Preparation Stage\n")
         self.deanomyzation_preparation()
+        
         print("De-anonymization Stage\n")
         self.deanomyzation_stage()
 

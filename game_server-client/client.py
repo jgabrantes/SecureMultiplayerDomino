@@ -259,13 +259,29 @@ class Client:
                     elif(self.type == 'DEAP0'):
                         self.recieveDeap0(data['array']) 
                     elif(self.type == 'REVL2'):
-                        self.recieveRevl2(data['stock'])                            
+                        self.recieveRevl2(data['stock'])
+                    elif(self.type == 'DEAS0'):
+                        self.recieveDeas0(data['stack'])                            
                     elif(self.type == 'test'):
                         print(self.pseudohand)    
 
             except socket.error as e:
                 print(e)
     
+    def recieveDeas0(self,stack):
+        for ptile in self.pseudohand:
+            i = ptile[0]
+            print(i)
+            print(len(stack))
+            pseudo_tile = ptile[1]
+            private_key = ptile[2]
+            
+            tile_fromserver, key_fromserver = security.rsaDecrypt(stack[i],private_key)
+            tile_here = security.aesDecrypt(pseudo_tile, key_fromserver)
+
+            if(tile_fromserver == tile_here):
+                print("The server sent this tile correctly!")
+
     def recieveDeap0(self, array):
         if random.randint(1,100) <= 70:
             public,private=security.rsaKeyPair()
@@ -288,16 +304,17 @@ class Client:
             
     
     def recieveRevl2(self, stock):
-        print(stock)
+        print(len(stock))
         for i,tile in enumerate(stock):
+            print(i)
             key = self.shufMap[tile]
             uncipheredtile = security.aesDecrypt(tile,key)
             stock[i] = pickle.loads(uncipheredtile)
-            message = {'type': "REVL4", 'stock': stock}
-            plainText = pickle.dumps(message)
-            self.s.sendall(plainText)
-            time.sleep(0.1)
-            print("Stock sent back\n")
+        message = {'type': "REVL4", 'stock': stock}
+        plainText = pickle.dumps(message)
+        self.s.sendall(plainText)
+        time.sleep(0.1)
+        print("Stock sent back\n")
 
     
     def recieveRevl1(self, keys_dict):
