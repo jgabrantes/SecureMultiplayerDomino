@@ -17,6 +17,7 @@ from getpass import getpass
 import base64
 import unicodedata
 import traceback 
+import getpass
 
 class PinError(Exception):
 	pass
@@ -233,7 +234,7 @@ class C_Card:
         session = self.session[0]
 
         pin = None
-        pin =  input("Pin : ")
+        pin =  getpass.getpass(input("Pin : "))
         try:
             session.login(pin)
         except PyKCS11Error:

@@ -37,7 +37,7 @@ class Server:
         self.consecutive_noplays = 0
         self.pseudoDeck = []
         self.sessKeys= []
-        self.commit= {}
+        self.commit= []
         self.nonce1 = []
         self.nonce2 = []
         self.COMMITS = {}
@@ -200,6 +200,7 @@ class Server:
             self.recieve_comm1(player)
             time.sleep(0.1)
         self.COMMITS['stock'] = self.pseudoDeck
+        #self.playerInitHand = copy.deepcopy(self.pseudoDeck)
         print("Sending the all the BitCommitments to all players")
         for player in self.players:
             self.send_comm2(player)
@@ -312,10 +313,14 @@ class Server:
 
     def bitValidationRecv(self,player):
         cipherText = self.conn[player].recv(self.message_size) 
+        print("Here")
         plaitext = security.aesDecrypt(cipherText,self.sessionKey[player])
+        print("Now here")
         message = pickle.loads(plaitext)
         self.nonce2[player] = message['nonce2']
+        print(self.nonce2[player])
         self.playerInitHand[player] = message['init_hand']
+        print(self.playerInitHand[player])
         commit = security.shaHash(self.nonce1[player]+self.nonce2[player]+str(self.playerInitHand[player]))
         if (commit != self.COMMITS[player]):
             print("Invalid bit commit from client"+player)
@@ -554,9 +559,15 @@ class Server:
                 next_player = self.players[self.players.index(next_player) + 1]
             print("Board after play: ")
             self.print_board(self.board)
+        '''
+        print("Validation stage\n")
         
+        self.bitValidation()
+        for player in self.players:
+            self.bitValidationRecv(player) 
+        '''
         return (winner,points)
-                
+          
     
     #select random tiles
     def select_randomtiles(self):

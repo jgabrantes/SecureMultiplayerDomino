@@ -45,7 +45,7 @@ class Client:
         aux = input("y/n \n")
         if len(sys.argv) >= 2:
             self.name = sys.argv[1]
-            self.cheatsOn = sys.argv[2] 
+            self.cheatsOn = bool(sys.argv[2])
         else:
             self.name = input("Pseudónimo: ")
         
@@ -55,7 +55,6 @@ class Client:
         if(aux=="y"):
             existCard = c_card() #aqui
             try:
-                print(existCard.login(0))
                 existCard.login(0)
                 msg = {"name": self.name,
                 "type": "AUTH0", 
@@ -228,14 +227,17 @@ class Client:
                     elif(self.type == 'DISCONNECT'):
                         winner = data['player']
                         points = data['points']
-
+                        
+                        print("The player " + winner + " wins the game with " +  str(points) + " points!\n")
                         if(aux=="y"):
+                            if(self.player != winner):
+                                points = 0
                             sign = existCard.infoCC
                             msg = str(sign)
                             saveResult = base64.b64encode(existCard.sign(0, bytes(msg, encoding='utf-8'))).decode('utf-8')
-                            self.saveScore(msg,points)
+                            print(saveResult)
+                            self.saveScore(saveResult,points)
 
-                        print("The player " + winner + " wins the game with " +  str(points) + " points!\n")
                         running = 0
                     elif(self.type == 'SHUF0'):
                         self.recieveShuf0(data['stock'])
@@ -264,10 +266,13 @@ class Client:
 
             except socket.error as e:
                 print(e)
+
     def sendBit(self):
+        print("here")
         message={'type':'VAL1','nonce2':nonce2,'init_hand':self.initHand}
         plainText=pickle.dumps(message)
         message = security.aesEncrypt(plainText,self.SESSION_KEY)
+        print(message)
         self.s.sendall(message)
 
     def recieveTile(self, tile):
@@ -296,9 +301,10 @@ class Client:
             if(tile_fromserver == tile_here):
                 print("The server sent this tile correctly!")
                 self.hand.append(tile_here)
+        self.initHand = copy.deepcopy(self.hand)        
 
     def recieveDeap0(self, array):
-        if random.randint(1,100) <= 70:
+        if random.randint(1,100) <= 5:
             public,private=security.rsaKeyPair()
             i = random.randint(0, len(self.pseudohand)-1)
             tuple_tile = self.pseudohand[i]
@@ -323,7 +329,6 @@ class Client:
             key = keys_dict[pseudotile]
             uncipheredtile = security.aesDecrypt(pseudotile,key)
             self.pseudohand[i] = pickle.loads(uncipheredtile)
-        self.initHand = copy.deepcopy(self.pseudohand)    
         print("Hand decrypted")
     
     def recieveRevl0(self, stock):
@@ -340,7 +345,7 @@ class Client:
     def recieveSel0(self, stock):
         self.STOCK = stock
         print("Stock recieved for selection from the Server")
-        if random.randint(1,100) <= 70:
+        if random.randint(1,100) <= 5:
             tile = random.choice(self.STOCK)
             self.pseudohand.append(tile)
             self.STOCK.remove(tile)
@@ -435,29 +440,31 @@ class Client:
                     if(value>max):
                         max = value
                         cheats = j
-                play_cheat = possible_plays[cheats]
+                play = possible_plays[cheats]
                 self.hand.remove(self.hand[0])
                 print("Possible plays:")
                 print(possible_plays)
                 print("\n")
                 print("Tile Played:")
-                self.print_board([play_cheat[0]])
-                if(play_cheat[1] == 'r'):
+                self.print_board([play[0]])
+                if(play[1] == 'r'):
                     print("Played on the right of the board!\n")
                 else:
                     print("Played on the left of the board!\n")
-                return play_cheat
+                return play
             else:
                 print("No valid plays, player must draw from stack!\n")
                 return None 
         else:
             max = 0
             choosen_one = 0
+            print(len(possible_plays))
             for j in range(0,len(possible_plays)):
                 value = possible_plays[j][0][0] + possible_plays[j][0][1]
                 if(value>max):
                     max = value
                     choosen_one = j
+            print(choosen_one)        
             play = possible_plays[choosen_one]
             self.hand.remove(play[0])
             print("Possible plays:")
@@ -481,9 +488,9 @@ class Client:
         with open('score.txt', 'r') as r:
             #lines = r.read().split("\n")
             lines = r.readlines()
-            print(lines)
+            #print(lines)
             for l in lines:
-                print(l)
+                #print(l)
                 if message in l:
                     print("exists updating score")
                     string = str(l)
@@ -491,7 +498,7 @@ class Client:
                     number= string.split("=")
                     i=0
                     for n in number:
-                        print(n)
+                        #print(n)
                         #print(i)
                         if i%2 != 0:
                             n=n.replace("]","")
@@ -505,8 +512,8 @@ class Client:
                             auxString=auxString.replace("[","")
                             auxString=auxString.replace("]","")
                             auxString=auxString.replace("'","")
-                            print(auxString)
-                            with open('score.txt', 'a') as a:
+                            #print(auxString)
+                            with open('score.txt', 'w') as a:
                                 a.write(auxString+" \n")
                         i+=1
                         #break               
