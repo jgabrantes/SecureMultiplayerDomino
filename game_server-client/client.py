@@ -257,19 +257,31 @@ class Client:
                     elif(self.type == 'REVL1'):
                         self.recieveRevl1(data['keys_dict'])
                     elif(self.type == 'DEAP0'):
-                        self.recieveDeap0()                              
+                        self.recieveDeap0(data['array'])                              
                     elif(self.type == 'test'):
                         print(self.pseudohand)    
 
             except socket.error as e:
                 print(e)
     
-    def recieveDeap0(self):
-        size = len(self.pseudohand)
-        array = [size]
-        for x in self.pseudohand:
+    def recieveDeap0(self, array):
+        if random.randint(1,100) <= 70:
             public,private=security.rsaKeyPair()
-            array[x[0]]
+            i = random.randint(0, len(self.pseudohand)-1)
+            tuple_tile = self.pseudohand[i]
+            array[tuple_tile[0]] = security.rsaDumpKey(public)
+            tuple_tile = (tuple_tile[0], tuple_tile[1], private)
+            self.pseudohand[i] = tuple_tile
+            message = {'type': 'DEAP1', 'array': array}
+            message = pickle.dumps(message)
+            message = security.aesEncrypt(message, self.SESSION_KEY)
+            self.s.sendall(message)
+            print("Key array sent\n")
+        else:
+            message = {'type': 'NO_DEAP1'}
+            message = pickle.dumps(message)
+            message = security.aesEncrypt(message, self.SESSION_KEY)
+            self.s.sendall(message)
 
             
 

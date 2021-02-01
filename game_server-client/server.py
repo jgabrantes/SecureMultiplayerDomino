@@ -46,6 +46,7 @@ class Server:
         self.has5 = {}
         self.message_size = 1048576
         self.played_tiles= ()
+        self.array = []
       
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
@@ -238,11 +239,32 @@ class Server:
             time.sleep(0.1)        
 
     def deanomyzation_preparation(self):
-        array = [5*self.nplayers]
-        message={'type':'DEAP0', 'array':array}
-        for p in self.players:
-            self.conn[p].sendall(message)
+        self.array = [None] * self.Ntiles
+        while(True):
+            i = random.randint(0,len(self.players)-1)
+            player = self.players[i]
+            message={'type':'DEAP0', 'array': self.array}
+            message = pickle.dumps(message)
+            message = security.aesEncrypt(message, self.sessionKey[player])
+            self.conn[player].sendall(message)
             time.sleep(0.1)
+            print("Key arrays sent to player " + player +"\n")
+            self.receive_Deap1(player)
+            time.sleep(0.1)
+            count = 0
+            for x in self.array:
+                if x != None:
+                    count += 1
+            if(count == self.nplayers*5):
+                break
+    
+
+    def receive_Deap1(self, player):
+        data = self.conn[player].recv(self.message_size)
+        data = security.aesDecrypt(data, self.sessionKey[player])
+        data = pickle.loads(data)
+        if (data['type'] == 'DEAP1'):
+            self.array = data['array']
 
        
     def play(self):
@@ -298,7 +320,6 @@ class Server:
         self.board = []
         self.stack = self.select_randomtiles()
         self.pseudoTile()
-        #print(self.pseudoDeck)
 
         #Shuffling Stage
         print("Shuffling Stage Starting:\n")
