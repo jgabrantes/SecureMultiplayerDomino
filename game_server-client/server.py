@@ -37,8 +37,9 @@ class Server:
         self.consecutive_noplays = 0
         self.pseudoDeck = []
         self.sessKeys= []
-        self.commit= []
+        self.commit= {}
         self.nonce1 = []
+        self.nonce2 = []
         self.COMMITS = {}
         self.Ntiles = 40
         self.has5 = {}
@@ -46,6 +47,7 @@ class Server:
         self.played_tiles= ()
         self.array = []
         self.pseudotiles_keys = []
+        self.playerInitHand = []
       
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
@@ -206,6 +208,7 @@ class Server:
         cipherText = self.conn[client].recv(1048576)
         plainText = security.aesDecrypt(cipherText, self.sessionKey[client])
         message = pickle.loads(plainText)
+        #self.commit[client]= message['commit']
         self.COMMITS[client] = (message['commit'],message['nonce1'])
         print('Bit commitment of ',client," recieved")
 
@@ -303,6 +306,22 @@ class Server:
         plainText = self.conn[player].recv(self.message_size)
         data = pickle.loads(plainText)
         return data['tile']
+    
+    def bitValidation(self):
+        message = {'type':'VAL0'}
+
+    def bitValidationRecv(self,player):
+        cipherText = self.conn[player].recv(self.message_size) 
+        plaitext = security.aesDecrypt(cipherText,self.sessionKey[player])
+        message = pickle.loads(plaitext)
+        self.nonce2[player] = message['nonce2']
+        self.playerInitHand[player] = message['init_hand']
+        commit = security.shaHash(self.nonce1[player]+self.nonce2[player]+str(self.playerInitHand[player]))
+        if (commit != self.COMMITS[player]):
+            print("Invalid bit commit from client"+player)
+            print("Either player is hacking or something wrong happened")
+        else:
+            print("Bit validation successfull")  
     
     def play(self):
         

@@ -9,6 +9,8 @@ import security
 import json
 from C_Card import C_Card as c_card
 from C_Card import PinError
+import base64
+import copy
 existCard = None # see if can get authentication CC
 
 
@@ -26,7 +28,7 @@ class Client:
         SERVER_PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         self.SESSION_KEY = security.aesKey()
         self.message_size = 1048576
-
+        self.initHand = []
         # This is for testing
         self.cheatsOn = False
         self.cheat_stack =   [(0,0),(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),
@@ -228,8 +230,10 @@ class Client:
                         points = data['points']
 
                         if(aux=="y"):
-                            message = [player.c_card.infoCC.serial_number]
-                            self.saveScore(message,points)
+                            sign = existCard.infoCC
+                            msg = str(sign)
+                            saveResult = base64.b64encode(existCard.sign(0, bytes(msg, encoding='utf-8'))).decode('utf-8')
+                            self.saveScore(msg,points)
 
                         print("The player " + winner + " wins the game with " +  str(points) + " points!\n")
                         running = 0
@@ -253,12 +257,19 @@ class Client:
                     elif(self.type == 'STU0'):
                         self.recieveStu0(data['tile'])
                     elif(self.type == 'send_tile'):
-                        self.recieveTile(data['tile'])                         
+                        self.recieveTile(data['tile'])
+                    elif(self.type == 'VAL0'):
+                        self.sendBit()                             
                        
 
             except socket.error as e:
                 print(e)
-    
+    def sendBit(self):
+        message={'type':'VAL1','nonce2':nonce2,'init_hand':self.initHand}
+        plainText=pickle.dumps(message)
+        message = security.aesEncrypt(plainText,self.SESSION_KEY)
+        self.s.sendall(message)
+
     def recieveTile(self, tile):
         self.hand.append(tile)
 
@@ -312,6 +323,7 @@ class Client:
             key = keys_dict[pseudotile]
             uncipheredtile = security.aesDecrypt(pseudotile,key)
             self.pseudohand[i] = pickle.loads(uncipheredtile)
+        self.initHand = copy.deepcopy(self.pseudohand)    
         print("Hand decrypted")
     
     def recieveRevl0(self, stock):
@@ -414,26 +426,30 @@ class Client:
                     possible_plays.append((x,'l'))
                 if(x[0] == right or x[1] == right):
                     possible_plays.append((x,'r'))
-            print("I CHEATED")        
-            max = 0
-            cheats = 0
-            for j in range(0,len(possible_plays)):
-                value = possible_plays[j][0][0] + possible_plays[j][0][1]
-                if(value>max):
-                    max = value
-                    cheats = j
-            play_cheat = possible_plays[cheats]
-            self.hand.remove(self.hand[0])
-            print("Possible plays:")
-            print(possible_plays)
-            print("\n")
-            print("Tile Played:")
-            self.print_board([play_cheat[0]])
-            if(play_cheat[1] == 'r'):
-                print("Played on the right of the board!\n")
+            if(random.randint(0,99)<=5):
+                print("I CHEATED")        
+                max = 0
+                cheats = 0
+                for j in range(0,len(possible_plays)):
+                    value = possible_plays[j][0][0] + possible_plays[j][0][1]
+                    if(value>max):
+                        max = value
+                        cheats = j
+                play_cheat = possible_plays[cheats]
+                self.hand.remove(self.hand[0])
+                print("Possible plays:")
+                print(possible_plays)
+                print("\n")
+                print("Tile Played:")
+                self.print_board([play_cheat[0]])
+                if(play_cheat[1] == 'r'):
+                    print("Played on the right of the board!\n")
+                else:
+                    print("Played on the left of the board!\n")
+                return play_cheat
             else:
-                print("Played on the left of the board!\n")
-            return play_cheat  
+                print("No valid plays, player must draw from stack!\n")
+                return None 
         else:
             max = 0
             choosen_one = 0
@@ -462,21 +478,42 @@ class Client:
         print(new_board)
 
     def saveScore(self,message,points):
-        #auxScore = (player)
-        #plainText = pickle.dumps(player)  
-        signature = c_card.sign(0,message)
         with open('score.txt', 'r') as r:
-            lines = r.read().splitlines()
-            if signature in r.read():
-                prev_score = lines.split("=")
-                score = points + prev_score
-                with open('score.txt', 'w') as w:
-                    w.write(lines.replace(prev_score,score))
-                w.close()
-            else:
-                with open('score.txt', 'wb') as wb:
-                    wb.write(signature+"="+points)    
-                
+            #lines = r.read().split("\n")
+            lines = r.readlines()
+            print(lines)
+            for l in lines:
+                print(l)
+                if message in l:
+                    print("exists updating score")
+                    string = str(l)
+                    print(string)
+                    number= string.split("=")
+                    i=0
+                    for n in number:
+                        print(n)
+                        #print(i)
+                        if i%2 != 0:
+                            n=n.replace("]","")
+                            n=n.replace("'","")
+                            prev_score = n
+                            print (prev_score)
+                            score = points + int(prev_score)
+                            print (score)
+                            #print(string.replace(prev_score,str(score)))
+                            auxString = string.replace(prev_score,str(score))
+                            auxString=auxString.replace("[","")
+                            auxString=auxString.replace("]","")
+                            auxString=auxString.replace("'","")
+                            print(auxString)
+                            with open('score.txt', 'a') as a:
+                                a.write(auxString+" \n")
+                        i+=1
+                        #break               
+                else:
+                    with open('score.txt', 'a', newline="") as a:
+                        a.write(message+"="+str(points)+" \n")   
+                        
         print("Score saved")     
 
     def pick_highest(self):
