@@ -137,7 +137,7 @@ class Server:
         for i, Pi in self.pseudotiles_keys:
             jsonText = security.aesDecrypt(Pi, self.sessKeys[i])
             Ti = pickle.loads(jsonText)
-            self.stack.append((Ti,self.sessKeys[i]))
+            stack.append((Ti,self.sessKeys[i]))
         return stack
             
 
@@ -288,16 +288,22 @@ class Server:
             self.array = data['array']
 
     def deanomyzation_stage(self):
-        stack_tiki = self.unpseudoTile()
+        stack_tiki = self.unpseudoTile()                                            #lista com (ti,ki)
         tiki_tosend = []
         
         for i,elem in enumerate(stack_tiki):
-            encrypted = security.rsaEncrypt(pickle.dumps(elem),self.array[i])
-            tiki_tosend.append(encrypted)
+            if(self.array[i] != None):
+                key =  security.rsaLoadKey(self.array[i])  
+                print(elem)                                     #i = 0,1...  elem = (ti,ki)...
+                encrypted = security.rsaEncrypt(pickle.dumps(elem),key)
+                tiki_tosend.append(encrypted)
+            else:
+                tiki_tosend.append(None)
         message = {'type': 'DEAS0', 'stack': tiki_tosend}
         message = pickle.dumps(message)
         for p in self.players:
             self.conn[p].sendall(message)
+            time.sleep(0.1)
 
     def play(self):
     

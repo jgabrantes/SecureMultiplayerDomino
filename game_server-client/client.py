@@ -271,16 +271,17 @@ class Client:
     def recieveDeas0(self,stack):
         for ptile in self.pseudohand:
             i = ptile[0]
-            print(i)
-            print(len(stack))
             pseudo_tile = ptile[1]
             private_key = ptile[2]
             
-            tile_fromserver, key_fromserver = security.rsaDecrypt(stack[i],private_key)
-            tile_here = security.aesDecrypt(pseudo_tile, key_fromserver)
+            tile_fromserver, key_fromserver = pickle.loads(security.rsaDecrypt(stack[i],private_key))
 
+            tile_here = pickle.loads(security.aesDecrypt(pseudo_tile, key_fromserver))
+            print("tile_here")
+            print(tile_here)
             if(tile_fromserver == tile_here):
                 print("The server sent this tile correctly!")
+                self.hand.append(tile_here)
 
     def recieveDeap0(self, array):
         if random.randint(1,100) <= 70:
@@ -306,7 +307,6 @@ class Client:
     def recieveRevl2(self, stock):
         print(len(stock))
         for i,tile in enumerate(stock):
-            print(i)
             key = self.shufMap[tile]
             uncipheredtile = security.aesDecrypt(tile,key)
             stock[i] = pickle.loads(uncipheredtile)
