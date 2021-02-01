@@ -257,7 +257,9 @@ class Client:
                     elif(self.type == 'REVL1'):
                         self.recieveRevl1(data['keys_dict'])
                     elif(self.type == 'DEAP0'):
-                        self.recieveDeap0(data['array'])                              
+                        self.recieveDeap0(data['array']) 
+                    elif(self.type == 'REVL2'):
+                        self.recieveRevl2(data['stock'])                            
                     elif(self.type == 'test'):
                         print(self.pseudohand)    
 
@@ -284,7 +286,20 @@ class Client:
             self.s.sendall(message)
 
             
+    
+    def recieveRevl2(self, stock):
+        print(stock)
+        for i,tile in enumerate(stock):
+            key = self.shufMap[tile]
+            uncipheredtile = security.aesDecrypt(tile,key)
+            stock[i] = pickle.loads(uncipheredtile)
+            message = {'type': "REVL4", 'stock': stock}
+            plainText = pickle.dumps(message)
+            self.s.sendall(plainText)
+            time.sleep(0.1)
+            print("Stock sent back\n")
 
+    
     def recieveRevl1(self, keys_dict):
         print("Keys for decrypting received\n")
         for i, pseudotile in enumerate(self.pseudohand):
@@ -346,7 +361,7 @@ class Client:
         plainText = pickle.dumps(message)
         cipherText = security.aesEncrypt(plainText, self.SESSION_KEY)
         self.s.sendall(cipherText)
-        print("Shuffled Stock sent to Server")
+        print("Shuffled Stock sent to Server") 
 
     def send_comm1(self):
         global nonce1, nonce2

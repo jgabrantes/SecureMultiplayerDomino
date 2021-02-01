@@ -47,6 +47,7 @@ class Server:
         self.message_size = 1048576
         self.played_tiles= ()
         self.array = []
+        self.pseudotiles_keys = []
       
         PUBLIC_KEY = security.rsaReadPublicKey('public.pem')
         PRIVATE_KEY = security.rsaReadPrivateKey('private.pem')
@@ -128,6 +129,8 @@ class Server:
             self.sessKeys.append(SESSION_KEY)
             Pi = security.aesEncrypt(pickle.dumps(Ti), SESSION_KEY)
             self.pseudoDeck.append((i,Pi))
+            self.pseudotiles_keys = copy.deepcopy(self.pseudoDeck)
+
             
 
     def unpseudoTile(self):
@@ -222,7 +225,25 @@ class Server:
         lista_players.reverse()
         for player in lista_players:
             self.send_revl0(player)
-            self.receive_revl1(player)    
+            self.receive_revl1(player)
+
+        for player in lista_players:
+            self.send_revl2(player)
+            time.sleep(0.1)
+            self.receive_revl3(player)
+            time.sleep(0.1)
+        
+    def send_revl2(self,player):
+        message = {'type': "REVL2", 'stock': self.pseudoDeck}
+        plainText = pickle.dumps(message)
+        self.conn[player].sendall(plainText)
+        print("Revelations of the stock asked to player " + player + "\n" )
+    
+    def receive_revl3(self, player):
+        plainText = self.conn[player].recv(self.message_size)
+        data = pickle.loads(plainText)
+        self.pseudoDeck = data['stock']
+        print("Stock updated\n")
 
     def send_revl0(self,player):
         message = {'type': "REVL0", 'stock': self.pseudoDeck}
@@ -268,6 +289,7 @@ class Server:
             self.array = data['array']
 
     def deanomyzation_stage(self):
+        print("PSEUDODEK:")
         print(self.pseudoDeck)
         self.unpseudoTile()
         print( self.stack)
@@ -354,10 +376,11 @@ class Server:
         '''
 
         # Tile de-anonymization 1
-        print("De-anonymization Preparation Stage")
+        print("De-anonymization Preparation Stage\n")
         self.deanomyzation_preparation()
-        print("De-anonymization Stage")
+        print("De-anonymization Stage\n")
         self.deanomyzation_stage()
+
         #first play in game, it is reseted if no doubles are drawn
         has_5pieces = 0
         while(not has_5pieces):
@@ -509,10 +532,7 @@ class Server:
     def invert_tile(self,tile):
         inverted_tile = (tile[1],tile[0])
         return inverted_tile
-            
-    
-
-    
+               
     #returns a copy of the stack
     def copy_stack(self,stack):
         new_stack = []
