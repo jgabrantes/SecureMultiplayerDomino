@@ -123,7 +123,7 @@ class Server:
 
     def pseudoTile(self):
         self.pseudoDeck = []
-        for i,Ti in enumerate(self.original_stack):
+        for i,Ti in enumerate(self.stack):
             SESSION_KEY = security.aesKey()
             self.sessKeys.append(SESSION_KEY)
             Pi = security.aesEncrypt(pickle.dumps(Ti), SESSION_KEY)
@@ -131,12 +131,13 @@ class Server:
             
 
     def unpseudoTile(self):
-        indexKey = 0
-        for Pi in self.pseudoDeck:
-            jsonText = security.aesDecrypt(Pi, self.sessKeys[indexKey])
+        
+        self.stack = []
+        for i, Pi in self.pseudoDeck:
+            jsonText = security.aesDecrypt(Pi, self.sessKeys[i])
             Ti = pickle.loads(jsonText)
-            print(Ti)
-            indexKey +=1
+            self.stack.append(Ti)
+            
 
     def sendShuf0(self, client):
         message = dict()
@@ -266,7 +267,12 @@ class Server:
         if (data['type'] == 'DEAP1'):
             self.array = data['array']
 
-       
+    def deanomyzation_stage(self):
+        print(self.pseudoDeck)
+        self.unpseudoTile()
+        print( self.stack)
+
+
     def play(self):
     
         end = 0
@@ -350,7 +356,8 @@ class Server:
         # Tile de-anonymization 1
         print("De-anonymization Preparation Stage")
         self.deanomyzation_preparation()
-
+        print("De-anonymization Stage")
+        self.deanomyzation_stage()
         #first play in game, it is reseted if no doubles are drawn
         has_5pieces = 0
         while(not has_5pieces):
